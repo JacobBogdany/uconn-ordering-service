@@ -4,15 +4,15 @@ Own the runtime foundation, order status/tracking, KDS, integration, and Render 
 
 ## Milestone 1 — Week 1 (Nov 10–15): Foundation and contract
 
-- [ ] Audit existing React mock flow and identify which pages/components are reusable; report gaps and duplicate mock-data sources.
-- [ ] Create the FastAPI backend skeleton, health route, local run instructions, CORS for local Vite, and Render-ready start command.
-- [ ] Establish shared backend settings and Supabase connection through environment variables; never expose the service key in frontend code.
+- [x] Audit existing React mock flow and identify which pages/components are reusable; report gaps and duplicate mock-data sources.
+- [x] Create the FastAPI backend skeleton, health route, local run instructions, CORS for local Vite, and Render-ready start command.
+- [x] Establish shared backend settings and a lazy Supabase client through environment variables; never expose the service key in frontend code.
 - [ ] Pair with teammates to lock order/status/payment contract, UUID conventions, API errors, and initial migration ownership.
-- [ ] Set up backend folder boundaries for catalog, checkout, and queue routes plus shared models/services.
-- [ ] Add a clear demo entry screen with **Log in as Student** and **Log in as Operator** buttons; connect each choice to a distinct session/view (operator maps to backend `staff`). Include this exact acceptance criterion in prompts to your AI coding assistant so it does not omit role entry as setup work.
-- [ ] Deliver a runnable frontend + backend baseline and handoff note.
+- [x] Set up backend folder boundaries for catalog, checkout, and queue routes plus shared models/services.
+- [x] Add a clear demo entry screen with **Log in as Student** and **Log in as Operator** buttons; connect each choice to a distinct signed session/view (operator maps to backend `staff`). Keep the demo token short-lived and server-signed, and include this acceptance criterion in AI implementation prompts.
+- [x] Document a runnable frontend + backend baseline and handoff instructions.
 
-**Acceptance:** fresh clone can start both services; health endpoint responds; both demo buttons enter the correct distinct views; the team has one reviewed contract and migration plan; no credentials are committed.
+**Acceptance:** implementation is in place. Fresh-clone runtime and live Supabase connectivity still need a local environment with installed dependencies, a generated demo secret, and Supabase credentials; the team contract review remains a shared handoff item. No credentials are committed.
 
 ## Milestone 2 — Week 2 (Nov 16–22): Order lifecycle and student tracking
 

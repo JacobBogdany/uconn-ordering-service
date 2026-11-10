@@ -85,3 +85,15 @@ export interface UserSession {
 }
 
 export type ViewRole = 'student' | 'staff';
+
+export type DemoPersona = 'student' | 'operator';
+
+export interface DemoAuthSession {
+  access_token: string;
+  token_type: 'bearer';
+  persona: DemoPersona;
+  role: ViewRole;
+  user_id: string;
+  display_name: string;
+  expires_at: string;
+}

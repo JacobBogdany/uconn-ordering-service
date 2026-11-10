@@ -1,0 +1,1 @@
+"""HuskyBite API application."""
