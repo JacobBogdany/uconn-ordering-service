@@ -9,9 +9,10 @@ Own the runtime foundation, order status/tracking, KDS, integration, and Render 
 - [ ] Establish shared backend settings and Supabase connection through environment variables; never expose the service key in frontend code.
 - [ ] Pair with teammates to lock order/status/payment contract, UUID conventions, API errors, and initial migration ownership.
 - [ ] Set up backend folder boundaries for catalog, checkout, and queue routes plus shared models/services.
+- [ ] Add a clear demo entry screen with **Log in as Student** and **Log in as Operator** buttons; connect each choice to a distinct session/view (operator maps to backend `staff`). Include this exact acceptance criterion in prompts to your AI coding assistant so it does not omit role entry as setup work.
 - [ ] Deliver a runnable frontend + backend baseline and handoff note.
 
-**Acceptance:** fresh clone can start both services; health endpoint responds; the team has one reviewed contract and migration plan; no credentials are committed.
+**Acceptance:** fresh clone can start both services; health endpoint responds; both demo buttons enter the correct distinct views; the team has one reviewed contract and migration plan; no credentials are committed.
 
 ## Milestone 2 — Week 2 (Nov 16–22): Order lifecycle and student tracking
 
@@ -20,6 +21,7 @@ Own the runtime foundation, order status/tracking, KDS, integration, and Render 
 - [ ] Implement staff-scoped active queue query by location with item details and elapsed time.
 - [ ] Connect the existing student tracking page to the API and poll at roughly five-second intervals with loading/error states.
 - [ ] Connect or refine KDS columns/actions for received, prepping, and ready orders; ensure completed orders leave the active queue.
+- [ ] Bind the demo role choice to a backend-recognized student or operator identity/session. Gate it behind explicit demo mode; do not accept a role header or arbitrary client user ID as authorization.
 - [ ] Coordinate checkout response shape with Vin and catalog location/menu shape with Jacob.
 
 **Acceptance:** an order created by checkout appears in the correct queue, advances only through legal states, and the student view reflects updates without manual refresh.
@@ -32,4 +34,4 @@ Own the runtime foundation, order status/tracking, KDS, integration, and Render 
 - [ ] Produce concise deployment/runbook steps and a demo reset/seed procedure that does not expose secrets.
 - [ ] Walk through the required flow on the deployed URL and record any remaining limitations for the team.
 
-**Acceptance:** deployed frontend reaches the Render API and Supabase; KDS status actions persist and appear in student tracking; demo can be repeated from documented setup.
+**Acceptance:** deployed frontend reaches the Render API and Supabase; KDS status actions persist and appear in student tracking; both demo login buttons work against deployed demo identities; demo can be repeated from documented setup.

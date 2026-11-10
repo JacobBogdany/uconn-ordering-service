@@ -28,6 +28,9 @@ The repository already contains a substantial React/Vite UI and mock flow, despi
 
 ### Required demonstration
 
+- Landing/login screen has clear **Log in as Student** and **Log in as Operator** buttons so a reviewer can enter either UI without setting up a real UConn account. Operator maps to the backend `staff` role.
+- Seed demo student and operator identities and keep role choice available for a repeatable presentation. The selected identity must be recognized by the backend; do not authorize requests from a client-supplied role header or user ID. Limit this shortcut to an explicitly enabled demo mode.
+- Jacob owns an idempotent Supabase seed with Beanery, Bookworms, and Putnam Grab-and-Go, plus representative menu items and modifiers for each. The menu must populate a clean database without hand-entered Supabase rows.
 - Browse a small seeded set of UConn locations and categorized menu items.
 - Search/filter by dietary tags and see unavailable items.
 - Customize an item, add/remove/update cart quantities, and see a correct total.
@@ -38,7 +41,7 @@ The repository already contains a substantial React/Vite UI and mock flow, despi
 
 ### Cut or defer
 
-Defer real UConn authentication, real payment rails, nutrition/macros, audio alerts, reordering, advanced wait prediction, SSE/WebSockets, and a full order-history product unless the required flow is complete early. Do not claim the demo is production-ready for real student financial balances.
+Defer real UConn authentication, real payment rails, nutrition/macros, audio alerts, reordering, advanced wait prediction, SSE/WebSockets, and a full order-history product unless the required flow is complete early. The demo role-choice login is still required; it is a controlled presentation shortcut, not production authentication. Do not claim the demo is production-ready for real student financial balances.
 
 ### Contract clarifications
 
@@ -48,7 +51,7 @@ Defer real UConn authentication, real payment rails, nutrition/macros, audio ale
 - Store item options in normalized modifier tables, then snapshot selected option labels/prices into each order line so later menu edits do not rewrite receipts.
 - Store the three simulated balances on a profile with nonnegative checks. Payment method is an enum; this is a demo ledger, not integration with campus payment systems. Checkout must update balance and insert order/lines in one database transaction.
 - Use Supabase Auth’s `auth.users` as the identity source and a `profiles` row keyed by its UUID. Do not store passwords or invent an independent user identity table. For the demo, seed/link test profiles through a controlled seed or admin path.
-- Never trust `user_id`, role headers, item price, or available balance supplied by a browser. Backend authorization must establish identity/role. If the class demo has no login, make the demo identity explicitly a development-only configuration and keep staff-only routes server-guarded.
+- Never trust `user_id`, role headers, item price, or available balance supplied by a browser. Backend authorization must establish identity/role. Demo role choice must resolve to a seeded identity through the configured demo-session/auth mechanism; reject demo login when demo mode is disabled and keep staff-only routes server-guarded.
 - Enable RLS on exposed tables. Client access should be read-only for public catalog data as appropriate; order creation and balance changes go through the trusted backend using a server-side Supabase key stored only in Render secrets. Staff mutations require a staff check.
 - Use `dietary_tags text[]` for the modest fixed tag set. Use relational `modifier_groups` and `modifier_options` rather than opaque customization JSON.
 - Permit cancellation only before preparation begins if cancellation is implemented; refund simulated balance in the same transaction. Otherwise omit cancellation from the demo contract.
@@ -82,6 +85,7 @@ Prefix all routes with `/api`. JSON uses snake_case and ISO 8601 UTC timestamps.
 
 | Method and route | Owner | Behavior |
 |---|---|---|
+| `POST /demo/login` | Vincent | Demo-only role choice (`student` or `operator`); when enabled, map the persona to its seeded Supabase identity and return the app session. Reject when demo mode is disabled. |
 | `GET /locations` | Jacob | List venues with operational status and derived active queue estimate if available. |
 | `GET /locations/:location_id/menu` | Jacob | List categorized items and modifier groups/options; optional comma-separated `dietary` filter. |
 | `PATCH /menu/:item_id/availability` | Jacob | Staff-only availability toggle. |
@@ -91,7 +95,7 @@ Prefix all routes with `/api`. JSON uses snake_case and ISO 8601 UTC timestamps.
 | `GET /orders/queue?location_id=...` | Vincent | Staff-only active queue for their permitted location(s). |
 | `PATCH /orders/:order_id/status` | Vincent | Staff-only validated state transition; server sets timestamps. |
 
-Remove the old `X-User-Role` header as an authorization mechanism. Keep API examples/types aligned with actual route behavior and document the auth/demo boundary.
+Remove the old `X-User-Role` header as an authorization mechanism. Demo login accepts only a persona enum and maps it server-side to the seeded identity; it must not accept a user ID or arbitrary role from the caller. Keep API examples/types aligned with actual route behavior and document the auth/demo boundary.
 
 ## Architecture and deployment
 
@@ -99,7 +103,8 @@ Remove the old `X-User-Role` header as an authorization mechanism. Keep API exam
 - **Backend:** add a Python FastAPI service (Pydantic validation, Supabase/Postgres client, CORS restricted to deployed frontend plus local development). Keep catalog, checkout, and queue routes separate. One language/framework is the default unless the existing team has already built backend work.
 - **Database:** Supabase Postgres; schema changes are versioned as SQL migrations committed to the repository. Enable RLS and test intended policies. Keep the Supabase service-role key and database credentials in Render environment secrets only.
 - **Hosting:** Render Web Service for API and Render Static Site for Vite frontend. Configure `VITE_API_URL`, backend CORS origin, and secret database settings. Add health endpoint and SPA fallback as needed. Do not commit `.env` files.
-- **Seed:** idempotent seed for Beanery, Bookworms, Putnam, representative menu and modifiers, and a development profile. Mark sample balances as simulated.
+- **Seed owner and requirement:** Jacob owns the idempotent database seed for Beanery, Bookworms, Putnam Grab-and-Go, representative menu items/modifiers, and demo student/operator profiles. This is a named deliverable, not optional sample data. It must work on an empty database and be safe to re-run; mark sample balances, hours, and menus as illustrative.
+- **Demo access:** Vincent owns the role-choice screen and demo session integration. Display **Log in as Student** and **Log in as Operator** (operator maps to `staff`); both must lead to distinct role-appropriate views using backend-recognized demo identities. Keep this mode explicitly gated and document how it is enabled.
 - **Mock parity:** retain a single mock adapter/data source for local UI work; switch to API using a documented environment/config flag. Avoid two divergent mock modules or storage as a substitute for cross-device server state.
 
 ## Shared working agreements
@@ -109,12 +114,14 @@ Remove the old `X-User-Role` header as an authorization mechanism. Keep API exam
 3. Keep `.env` and service credentials out of Git. Commit migrations, sanitized seed data, and setup instructions.
 4. Every milestone includes a short integrated demo and a handoff note: completed behavior, known limitation, and how to run it.
 5. Preserve working UI when refactoring. The current code is a starter to assess, not proof that every roadmap item is done.
+6. When using an AI to implement a teammate’s slice, include the teammate’s explicit seed/demo-access task from their todo in the prompt; do not let the AI omit seeded records or role-entry flows as “demo setup.”
 
 ## Risks and scope controls
 
 - **Three-week constraint:** the former plan had five weeks of work. Prioritize a single end-to-end path with seeded data; cut optional history, real auth, analytics, notifications, and advanced estimates.
 - **Balance/payment ambiguity:** simulated balances and payment-unit semantics must be resolved before checkout implementation. No real transaction integrations.
 - **Authorization:** role headers are trivially spoofed. Enforce identity and staff checks in the backend, even for a demo.
+- **Demo readiness:** a reviewer must enter as either student or operator with one click; seed data must be present after the documented setup/reset command.
 - **Supabase RLS and service key:** do not expose privileged keys in Vite variables; the `VITE_` prefix is public.
 - **Existing frontend drift:** duplicate mock data, existing page implementation, and legacy contract may disagree. Audit and consolidate rather than rebuilding from assumptions.
 - **Render free-instance behavior:** cold starts and persistence assumptions can affect demos. Supabase remains the persistent data source; verify deployed health and frontend API URL before final demo.
@@ -122,6 +129,8 @@ Remove the old `X-User-Role` header as an authorization mechanism. Keep API exam
 ## Definition of done
 
 - A new teammate can install/run the app from the README with documented environment variables and seeded data.
+- A reviewer can use both role-choice buttons and sees distinct student and operator capabilities; demo mode cannot be used when disabled.
+- A clean Supabase database can be seeded with all three venues and menus using Jacob’s documented repeatable seed procedure.
 - The required browse → customize → checkout → staff queue/status → student tracking flow works against the shared Supabase-backed API in the deployed demo.
 - Server rejects invalid selections, unavailable items, insufficient balance, unauthorized staff actions, and illegal status changes.
 - Database migration and seed are reproducible; RLS is enabled and tested; no secrets are committed.
