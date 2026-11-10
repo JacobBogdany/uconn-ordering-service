@@ -8,18 +8,18 @@
 ---
 
 ## Phase 0: Quick-Start Zero-DB Working Demo (Immediate Milestone)
-- [ ] Create `src/mockData.ts` with initial UConn seed data (Beanery, Bookworms, Putnam Grab-and-Go).
-- [ ] Implement `src/context/DemoContext.tsx` or `localStorage` adapter to store:
-  - [ ] Current user session (`HuskyBucks` balance = $50.00).
-  - [ ] Active orders array.
-  - [ ] Menu inventory availability flags.
-- [ ] Create an explicit UI "Role Switcher" banner in the header (`Student View` vs. `Dining Staff KDS View`).
-- [ ] Connect the complete loop without a backend/database:
-  - [ ] Browse menu -> Customize coffee/sandwich -> Add to cart.
-  - [ ] Submit simulated payment -> Generate order with pickup code (e.g., `#UCONN-104`).
-  - [ ] View student live tracking screen (`Received`).
-  - [ ] Toggle to staff view -> Click "Start Prepping" -> Click "Mark Ready".
-  - [ ] Switch back to student view to verify the order status reflects `Ready for Pickup`.
+- [x] Create `src/mockData.ts` with initial UConn seed data (Beanery, Bookworms, Putnam Grab-and-Go).
+- [x] Implement `src/context/DemoContext.tsx` or `localStorage` adapter to store:
+  - [x] Current user session (`HuskyBucks` balance = $50.00).
+  - [x] Active orders array.
+  - [x] Menu inventory availability flags.
+- [x] Create an explicit UI "Role Switcher" banner in the header (`Student View` vs. `Dining Staff KDS View`).
+- [x] Connect the complete loop without a backend/database:
+  - [x] Browse menu -> Customize coffee/sandwich -> Add to cart.
+  - [x] Submit simulated payment -> Generate order with pickup code (e.g., `#UCONN-104`).
+  - [x] View student live tracking screen (`Received`).
+  - [x] Toggle to staff view -> Click "Start Prepping" -> Click "Mark Ready".
+  - [x] Switch back to student view to verify the order status reflects `Ready for Pickup`.
 
 ---
 
