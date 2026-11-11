@@ -14,6 +14,8 @@ import type {
   Order,
   OrderItem,
   PaymentMethod,
+  DemoAuthSession,
+  DemoPersona,
   UserSession,
   ViewRole,
 } from '../types';
@@ -21,6 +23,24 @@ import type {
 const ORDERS_KEY = 'huskybite_orders';
 const SESSION_KEY = 'huskybite_session';
 const AVAIL_KEY = 'huskybite_availability';
+const AUTH_KEY = 'huskybite_demo_auth';
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
+
+function loadDemoAuth(): DemoAuthSession | null {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY);
+    if (!raw) return null;
+    const auth = JSON.parse(raw) as DemoAuthSession;
+    if (!auth.access_token || new Date(auth.expires_at).getTime() <= Date.now()) {
+      localStorage.removeItem(AUTH_KEY);
+      return null;
+    }
+    return auth;
+  } catch {
+    localStorage.removeItem(AUTH_KEY);
+    return null;
+  }
+}
 
 function loadOrders(): Order[] {
   try {
@@ -72,7 +92,9 @@ function generatePickupCode(locationId: string, orderCount: number): string {
 interface DemoContextType {
   // Role
   viewRole: ViewRole;
-  setViewRole: (role: ViewRole) => void;
+  demoAuth: DemoAuthSession | null;
+  loginAsPersona: (persona: DemoPersona) => Promise<void>;
+  logoutDemo: () => void;
 
   // Session
   session: UserSession;
@@ -105,7 +127,8 @@ interface DemoContextType {
 const DemoContext = createContext<DemoContextType | null>(null);
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
-  const [viewRole, setViewRole] = useState<ViewRole>('student');
+  const [demoAuth, setDemoAuth] = useState<DemoAuthSession | null>(loadDemoAuth);
+  const [viewRole, setViewRole] = useState<ViewRole>(() => loadDemoAuth()?.role ?? 'student');
   const [session, setSession] = useState<UserSession>(loadSession);
   const [orders, setOrders] = useState<Order[]>(loadOrders);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -119,6 +142,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     saveSession(session);
   }, [session]);
+
+  useEffect(() => {
+    if (demoAuth) localStorage.setItem(AUTH_KEY, JSON.stringify(demoAuth));
+    else localStorage.removeItem(AUTH_KEY);
+  }, [demoAuth]);
 
   useEffect(() => {
     saveAvailability(availabilityOverrides);
@@ -193,6 +221,40 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearCart = useCallback(() => setCart([]), []);
+
+  const loginAsPersona = useCallback(async (persona: DemoPersona) => {
+    const response = await fetch(`${API_BASE_URL}/api/demo/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ persona }),
+    });
+    if (!response.ok) {
+      let message = `Demo login failed (${response.status}).`;
+      try {
+        const body = await response.json() as { detail?: string };
+        if (body.detail) message = body.detail;
+      } catch {
+        // Keep the status-based message when the API returns no JSON body.
+      }
+      throw new Error(message);
+    }
+
+    const auth = await response.json() as DemoAuthSession;
+    setDemoAuth(auth);
+    setViewRole(auth.role);
+    if (auth.persona === 'student') {
+      setSession((current) => ({
+        ...current,
+        user_id: auth.user_id,
+        name: auth.display_name,
+      }));
+    }
+  }, []);
+
+  const logoutDemo = useCallback(() => {
+    setDemoAuth(null);
+    setViewRole('student');
+  }, []);
 
   const cartTotal = cart.reduce((sum, c) => sum + c.unit_price * c.quantity, 0);
 
@@ -315,7 +377,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     <DemoContext.Provider
       value={{
         viewRole,
-        setViewRole,
+        demoAuth,
+        loginAsPersona,
+        logoutDemo,
         session,
         resetSession,
         locations: MOCK_LOCATIONS,

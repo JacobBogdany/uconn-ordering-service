@@ -5,13 +5,13 @@ Own balance display, customization, cart, server-side pricing, and simulated che
 ## Milestone 1 — Week 1 (Nov 10–15): Checkout rules and shared types
 
 - [ ] Audit existing customization/cart/checkout UI and note which pieces can be reused; reconcile UI types with the proposed database/API model.
-- [ ] Agree with the team on payment semantics. Recommend HuskyBucks-only for the first end-to-end demo unless pass/points conversion is explicitly specified.
+- [x] Use the locked first-demo payment rule: accept HuskyBucks only. Keep Flex Passes and Points out of checkout until redemption rules are explicitly approved; never infer a conversion.
 - [ ] Define selection validation rules for required groups, max selections, unavailable modifiers, notes, and price calculation.
 - [ ] Align profile/balance and order request/response types with the Supabase schema; use `/api/users/me/balance` rather than arbitrary user IDs once identity is available.
 - [ ] Use the logged-in demo student identity for balance and checkout; remove any hardcoded user IDs from requests and coordinate the session type with Vincent.
 - [ ] Specify a development demo identity strategy that does not treat a client-supplied ID as authorization.
 
-**Acceptance:** checkout inputs, price rules, payment behavior, and response shape are written down and accepted by all owners before implementation.
+**Acceptance:** checkout inputs, price rules, and response shape follow the master contract; first-demo payment behavior is HuskyBucks-only, with no pass/points conversion.
 
 ## Milestone 2 — Week 2 (Nov 16–22): Persisted checkout vertical slice
 

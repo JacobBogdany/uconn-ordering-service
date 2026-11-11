@@ -4,7 +4,7 @@ import CartDrawer from './CartDrawer';
 import { useState } from 'react';
 
 export default function Layout() {
-  const { viewRole, setViewRole, session, cart, orders } = useDemo();
+  const { viewRole, demoAuth, logoutDemo, session, cart, orders } = useDemo();
   const [cartOpen, setCartOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -16,20 +16,14 @@ export default function Layout() {
       {/* Role Switcher Banner */}
       <div className="bg-blue-900 text-white text-center text-sm py-1.5 flex items-center justify-center gap-4">
         <span className="font-medium">🎓 Demo Mode</span>
-        <div className="flex rounded-full overflow-hidden border border-blue-400">
-          <button
-            onClick={() => { setViewRole('student'); navigate('/locations'); }}
-            className={`px-4 py-0.5 text-xs font-semibold transition-colors ${viewRole === 'student' ? 'bg-white text-blue-900' : 'text-blue-200 hover:bg-blue-800'}`}
-          >
-            Student View
-          </button>
-          <button
-            onClick={() => { setViewRole('staff'); navigate('/staff/kds'); }}
-            className={`px-4 py-0.5 text-xs font-semibold transition-colors ${viewRole === 'staff' ? 'bg-white text-blue-900' : 'text-blue-200 hover:bg-blue-800'}`}
-          >
-            Dining Staff KDS
-          </button>
-        </div>
+        <span className="text-blue-100">Signed in as {demoAuth?.persona === 'operator' ? 'Operator' : 'Student'}</span>
+        <button
+          type="button"
+          onClick={() => { logoutDemo(); navigate('/login'); }}
+          className="rounded-full border border-blue-300 px-3 py-0.5 text-xs font-semibold text-white transition-colors hover:bg-blue-800"
+        >
+          Switch demo role
+        </button>
       </div>
 
       {/* Header */}
