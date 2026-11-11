@@ -111,13 +111,13 @@ export default function OrderTrackingPage() {
           {order.items.map((item, i) => (
             <div key={i} className="flex justify-between text-sm">
               <div>
-                <span className="font-medium">{item.quantity}× {item.name}</span>
+                <span className="font-medium">{item.quantity}× {item.item_name}</span>
                 {item.selected_options.length > 0 && (
-                  <div className="text-xs text-gray-400">{item.selected_options.join(', ')}</div>
+                  <div className="text-xs text-gray-400">{item.selected_options.map((o) => o.name).join(', ')}</div>
                 )}
                 {item.notes && <div className="text-xs text-orange-500 italic">"{item.notes}"</div>}
               </div>
-              <span className="font-semibold text-gray-700">${(item.unit_price * item.quantity).toFixed(2)}</span>
+              <span className="font-semibold text-gray-700">${item.line_total.toFixed(2)}</span>
             </div>
           ))}
         </div>

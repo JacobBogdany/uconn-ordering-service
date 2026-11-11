@@ -41,7 +41,7 @@ export default function Layout() {
             {viewRole === 'student' && (
               <>
                 <div className="text-right hidden sm:block">
-                  <div className="text-xs text-gray-500">{session.name}</div>
+                  <div className="text-xs text-gray-500">{session.display_name}</div>
                   <div className="text-sm font-semibold text-green-700">${session.huskybucks_balance.toFixed(2)} HuskyBucks</div>
                 </div>
 

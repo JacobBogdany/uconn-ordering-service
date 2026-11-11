@@ -1,12 +1,15 @@
-import type { Location, MenuItem, UserSession } from './types';
+import type { Location, MenuItem } from './types';
 
-export const MOCK_USER: UserSession = {
-  user_id: 'user-uconn-01',
-  name: 'Alex Husky',
-  email: 'alex.husky@uconn.edu',
-  huskybucks_balance: 50.00,
+/**
+ * Illustrative starting balances for the local mock adapter only. Identity comes
+ * from the signed demo session (user_id/display_name); there is no mock user id.
+ * Mirrors the profiles table defaults. With Supabase connected, use
+ * GET /api/users/me/balance instead.
+ */
+export const MOCK_STARTING_BALANCES = {
+  huskybucks_balance: 50.0,
   flex_passes: 10,
-  dining_points: 150,
+  dining_points: 120,
 };
 
 export const MOCK_LOCATIONS: Location[] = [

@@ -40,9 +40,9 @@ function OrderCard({ order, onAdvance }: { order: Order; onAdvance: () => void }
       <div className="space-y-1 mb-3">
         {order.items.map((item, i) => (
           <div key={i} className="text-sm">
-            <span className="font-semibold">{item.quantity}× {item.name}</span>
+            <span className="font-semibold">{item.quantity}× {item.item_name}</span>
             {item.selected_options.length > 0 && (
-              <div className="text-xs text-gray-500 ml-3">{item.selected_options.join(' · ')}</div>
+              <div className="text-xs text-gray-500 ml-3">{item.selected_options.map((o) => o.name).join(' · ')}</div>
             )}
             {item.notes && (
               <div className="text-xs text-orange-600 italic ml-3">⚠️ {item.notes}</div>

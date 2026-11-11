@@ -26,3 +26,13 @@ def require_operator(identity: dict[str, Any] = Depends(require_demo_identity)) 
     if identity.get("role") != "staff":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Operator access required.")
     return identity
+
+
+def require_student(identity: dict[str, Any] = Depends(require_demo_identity)) -> dict[str, Any]:
+    """Checkout and balance routes act only for the signed-in student.
+
+    The user id is the session's signed `sub` claim; request bodies never carry it.
+    """
+    if identity.get("role") != "student":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Student session required.")
+    return identity
