@@ -4,14 +4,16 @@ Own balance display, customization, cart, server-side pricing, and simulated che
 
 ## Milestone 1 — Week 1 (Nov 10–15): Checkout rules and shared types
 
-- [ ] Audit existing customization/cart/checkout UI and note which pieces can be reused; reconcile UI types with the proposed database/API model.
+- [x] Audit existing customization/cart/checkout UI and note which pieces can be reused; reconcile UI types with the proposed database/API model.
 - [x] Use the locked first-demo payment rule: accept HuskyBucks only. Keep Flex Passes and Points out of checkout until redemption rules are explicitly approved; never infer a conversion.
-- [ ] Define selection validation rules for required groups, max selections, unavailable modifiers, notes, and price calculation.
-- [ ] Align profile/balance and order request/response types with the Supabase schema; use `/api/users/me/balance` rather than arbitrary user IDs once identity is available.
-- [ ] Use the logged-in demo student identity for balance and checkout; remove any hardcoded user IDs from requests and coordinate the session type with Vincent.
-- [ ] Specify a development demo identity strategy that does not treat a client-supplied ID as authorization.
+- [x] Define selection validation rules for required groups, max selections, unavailable modifiers, notes, and price calculation.
+- [x] Align profile/balance and order request/response types with the Supabase schema; use `/api/users/me/balance` rather than arbitrary user IDs once identity is available.
+- [x] Use the logged-in demo student identity for balance and checkout; remove any hardcoded user IDs from requests and coordinate the session type with Vincent.
+- [x] Specify a development demo identity strategy that does not treat a client-supplied ID as authorization.
 
 **Acceptance:** checkout inputs, price rules, and response shape follow the master contract; first-demo payment behavior is HuskyBucks-only, with no pass/points conversion.
+
+**Handoff (Milestone 1):** see [checkout_contract.md](checkout_contract.md) for the audit, rules, request/response shapes, error codes, and identity strategy. Rules live in `backend/app/services/checkout_rules.py` (authoritative, unit-tested) and `frontend/src/features/checkout/rules.ts` (UI mirror). `GET /api/users/me/balance` is implemented and session-scoped; it needs Supabase plus Jacob's seeded profile to return data. Known limitation: the frontend still runs checkout through the mock adapter until `POST /api/orders` lands in Milestone 2.
 
 ## Milestone 2 — Week 2 (Nov 16–22): Persisted checkout vertical slice
 

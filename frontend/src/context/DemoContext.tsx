@@ -6,22 +6,30 @@ import React, {
   useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { MOCK_LOCATIONS, MOCK_MENU_ITEMS, MOCK_USER } from '../mockData';
+import { MOCK_LOCATIONS, MOCK_MENU_ITEMS, MOCK_STARTING_BALANCES } from '../mockData';
+import {
+  assertSufficientBalance,
+  buildCreateOrderRequest,
+  cartTotalCents,
+  CheckoutRuleError,
+  fromCents,
+  MAX_QUANTITY_PER_LINE,
+  priceOrder,
+} from '../features/checkout/rules';
 import type {
+  BalanceResponse,
   CartItem,
   Location,
   MenuItem,
   Order,
-  OrderItem,
-  PaymentMethod,
   DemoAuthSession,
   DemoPersona,
-  UserSession,
   ViewRole,
 } from '../types';
 
-const ORDERS_KEY = 'huskybite_orders';
-const SESSION_KEY = 'huskybite_session';
+// v2 keys: order line/option shapes changed to the checkout contract.
+const ORDERS_KEY = 'huskybite_orders_v2';
+const BALANCES_KEY = 'huskybite_balances_v2';
 const AVAIL_KEY = 'huskybite_availability';
 const AUTH_KEY = 'huskybite_demo_auth';
 const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
@@ -55,17 +63,20 @@ function saveOrders(orders: Order[]) {
   localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
 }
 
-function loadSession(): UserSession {
+type MockBalances = Omit<BalanceResponse, 'user_id' | 'display_name'>;
+
+/** Mock balances keyed by the signed demo session's user_id (no hardcoded ids). */
+function loadBalances(): Record<string, MockBalances> {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : { ...MOCK_USER };
+    const raw = localStorage.getItem(BALANCES_KEY);
+    return raw ? JSON.parse(raw) : {};
   } catch {
-    return { ...MOCK_USER };
+    return {};
   }
 }
 
-function saveSession(session: UserSession) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+function saveBalances(balances: Record<string, MockBalances>) {
+  localStorage.setItem(BALANCES_KEY, JSON.stringify(balances));
 }
 
 function loadAvailability(): Record<string, boolean> {
@@ -81,11 +92,18 @@ function saveAvailability(avail: Record<string, boolean>) {
   localStorage.setItem(AVAIL_KEY, JSON.stringify(avail));
 }
 
-function generatePickupCode(locationId: string, orderCount: number): string {
+/** Mock only: unique per location among stored orders. Milestone 2 moves this to the server. */
+function generatePickupCode(locationId: string, existing: Order[]): string {
   const prefix = locationId === 'beanery' ? 'B' : locationId === 'bookworms' ? 'BW' : 'P';
-  const num = (100 + orderCount) % 999;
-  return `#${prefix}-${num}`;
+  const taken = new Set(existing.filter((o) => o.location_id === locationId).map((o) => o.pickup_code));
+  for (let n = 100 + existing.length; n < 100 + existing.length + 900; n += 1) {
+    const code = `#${prefix}-${100 + (n % 900)}`;
+    if (!taken.has(code)) return code;
+  }
+  throw new CheckoutRuleError('VALIDATION_ERROR', 'No pickup codes available. Reset the demo.');
 }
+
+export type AddToCartResult = { ok: true } | { ok: false; message: string };
 
 
 
@@ -96,8 +114,9 @@ interface DemoContextType {
   loginAsPersona: (persona: DemoPersona) => Promise<void>;
   logoutDemo: () => void;
 
-  // Session
-  session: UserSession;
+  // Session: identity from the signed demo session; balances from the mock adapter
+  // (GET /api/users/me/balance once Supabase is seeded).
+  session: BalanceResponse;
   resetSession: () => void;
 
   // Locations
@@ -110,15 +129,17 @@ interface DemoContextType {
 
   // Cart
   cart: CartItem[];
-  addToCart: (item: CartItem) => void;
+  addToCart: (item: CartItem) => AddToCartResult;
   removeFromCart: (index: number) => void;
   updateCartQty: (index: number, qty: number) => void;
   clearCart: () => void;
-  cartTotal: number;
+  cartTotal: number; // display estimate; server recomputes
+  cartLocationId: string | null;
 
   // Orders
   orders: Order[];
-  placeOrder: (locationId: string, paymentMethod: PaymentMethod) => Order | null;
+  /** HuskyBucks only. Rejects with CheckoutRuleError on any contract violation. */
+  placeOrder: () => Promise<Order>;
   advanceOrderStatus: (orderId: string) => void;
   cancelOrder: (orderId: string) => void;
   getOrderById: (orderId: string) => Order | undefined;
@@ -129,7 +150,7 @@ const DemoContext = createContext<DemoContextType | null>(null);
 export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [demoAuth, setDemoAuth] = useState<DemoAuthSession | null>(loadDemoAuth);
   const [viewRole, setViewRole] = useState<ViewRole>(() => loadDemoAuth()?.role ?? 'student');
-  const [session, setSession] = useState<UserSession>(loadSession);
+  const [balancesByUser, setBalancesByUser] = useState<Record<string, MockBalances>>(loadBalances);
   const [orders, setOrders] = useState<Order[]>(loadOrders);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [availabilityOverrides, setAvailabilityOverrides] = useState<Record<string, boolean>>(loadAvailability);
@@ -140,8 +161,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, [orders]);
 
   useEffect(() => {
-    saveSession(session);
-  }, [session]);
+    saveBalances(balancesByUser);
+  }, [balancesByUser]);
 
   useEffect(() => {
     if (demoAuth) localStorage.setItem(AUTH_KEY, JSON.stringify(demoAuth));
@@ -158,8 +179,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       if (e.key === ORDERS_KEY && e.newValue) {
         setOrders(JSON.parse(e.newValue));
       }
-      if (e.key === SESSION_KEY && e.newValue) {
-        setSession(JSON.parse(e.newValue));
+      if (e.key === BALANCES_KEY && e.newValue) {
+        setBalancesByUser(JSON.parse(e.newValue));
       }
       if (e.key === AVAIL_KEY && e.newValue) {
         setAvailabilityOverrides(JSON.parse(e.newValue));
@@ -186,29 +207,57 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     [menuItems]
   );
 
-  const addToCart = useCallback((item: CartItem) => {
-    setCart((prev) => {
-      // Try to merge if same item + same options + same notes
-      const idx = prev.findIndex(
-        (c) =>
-          c.menu_item_id === item.menu_item_id &&
-          JSON.stringify(c.selected_options) === JSON.stringify(item.selected_options) &&
-          c.notes === item.notes
-      );
-      if (idx !== -1) {
+  const studentId = demoAuth?.role === 'student' ? demoAuth.user_id : null;
+  const balances: MockBalances = (studentId && balancesByUser[studentId]) || MOCK_STARTING_BALANCES;
+  const session: BalanceResponse = {
+    user_id: studentId ?? '',
+    display_name: demoAuth?.display_name ?? '',
+    ...balances,
+  };
+
+  const updateBalances = useCallback(
+    (update: (current: MockBalances) => MockBalances) => {
+      if (!studentId) return;
+      setBalancesByUser((prev) => ({
+        ...prev,
+        [studentId]: update(prev[studentId] ?? { ...MOCK_STARTING_BALANCES }),
+      }));
+    },
+    [studentId]
+  );
+
+  const cartLocationId = cart[0]?.location_id ?? null;
+
+  const addToCart = useCallback(
+    (item: CartItem): AddToCartResult => {
+      // One order = one pickup location (orders.location_id).
+      if (cart.length > 0 && cart[0].location_id !== item.location_id) {
+        const current = MOCK_LOCATIONS.find((l) => l.id === cart[0].location_id)?.name ?? 'another location';
+        return { ok: false, message: `Your cart has items from ${current}. Check out or clear it first.` };
+      }
+      const existing = cart.find((c) => c.line_id === item.line_id);
+      if (existing && existing.quantity + item.quantity > MAX_QUANTITY_PER_LINE) {
+        return { ok: false, message: `Limit ${MAX_QUANTITY_PER_LINE} of the same item per order.` };
+      }
+      setCart((prev) => {
+        // Merge identical item + options + notes into one line.
+        const idx = prev.findIndex((c) => c.line_id === item.line_id);
+        if (idx === -1) return [...prev, item];
         const updated = [...prev];
         updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + item.quantity };
         return updated;
-      }
-      return [...prev, item];
-    });
-  }, []);
+      });
+      return { ok: true };
+    },
+    [cart]
+  );
 
   const removeFromCart = useCallback((index: number) => {
     setCart((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const updateCartQty = useCallback((index: number, qty: number) => {
+  const updateCartQty = useCallback((index: number, rawQty: number) => {
+    const qty = Math.min(rawQty, MAX_QUANTITY_PER_LINE);
     if (qty <= 0) {
       setCart((prev) => prev.filter((_, i) => i !== index));
     } else {
@@ -242,13 +291,6 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     const auth = await response.json() as DemoAuthSession;
     setDemoAuth(auth);
     setViewRole(auth.role);
-    if (auth.persona === 'student') {
-      setSession((current) => ({
-        ...current,
-        user_id: auth.user_id,
-        name: auth.display_name,
-      }));
-    }
   }, []);
 
   const logoutDemo = useCallback(() => {
@@ -256,70 +298,47 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setViewRole('student');
   }, []);
 
-  const cartTotal = cart.reduce((sum, c) => sum + c.unit_price * c.quantity, 0);
+  const cartTotal = fromCents(cartTotalCents(cart));
 
-  const placeOrder = useCallback(
-    (locationId: string, paymentMethod: PaymentMethod): Order | null => {
-      if (cart.length === 0) return null;
+  /**
+   * Mock stand-in for POST /api/orders. Follows the server contract: sends only
+   * ids/quantities/options/notes, re-prices from current catalog rows (ignoring
+   * cart prices), accepts HuskyBucks only, checks funds, then debits and records.
+   */
+  const placeOrder = useCallback(async (): Promise<Order> => {
+    if (!demoAuth || demoAuth.role !== 'student' || !studentId) {
+      throw new CheckoutRuleError('VALIDATION_ERROR', 'Sign in as a student to check out.');
+    }
+    const request = buildCreateOrderRequest(cart);
+    await new Promise((r) => setTimeout(r, 400)); // simulate network latency
 
-      const location = MOCK_LOCATIONS.find((l) => l.id === locationId);
-      if (!location) return null;
+    const priced = priceOrder(request, menuItems, MOCK_LOCATIONS);
+    const remaining = assertSufficientBalance(balances.huskybucks_balance, priced.totalCents);
 
-      const total = Math.round(cartTotal * 100) / 100;
+    const existing = loadOrders();
+    const now = new Date();
+    const order: Order = {
+      order_id: `ord-${uuidv4().slice(0, 8)}`,
+      pickup_code: generatePickupCode(priced.location.id, existing),
+      status: 'RECEIVED',
+      location_id: priced.location.id,
+      location_name: priced.location.name,
+      total_amount: fromCents(priced.totalCents),
+      payment_method: request.payment_method,
+      remaining_balance: remaining,
+      estimated_ready_time: new Date(now.getTime() + 10 * 60 * 1000).toISOString(),
+      created_at: now.toISOString(),
+      ready_at: null,
+      completed_at: null,
+      items: priced.lines.map((line) => ({ id: uuidv4(), ...line })),
+      customer_name: demoAuth.display_name,
+    };
 
-      // Balance check
-      if (paymentMethod === 'HUSKYBUCKS' && session.huskybucks_balance < total) return null;
-      if (paymentMethod === 'FLEX_PASS' && session.flex_passes <= 0) return null;
-      if (paymentMethod === 'POINTS' && session.dining_points < total * 10) return null;
-
-      const allOrders = loadOrders();
-      const orderCount = allOrders.length + 1;
-      const orderId = `ord-${uuidv4().slice(0, 8)}`;
-      const pickupCode = generatePickupCode(locationId, orderCount);
-      const now = new Date();
-      const estimatedReady = new Date(now.getTime() + 10 * 60 * 1000);
-
-      const orderItems: OrderItem[] = cart.map((c) => ({
-        id: uuidv4(),
-        menu_item_id: c.menu_item_id,
-        name: c.name,
-        quantity: c.quantity,
-        unit_price: c.unit_price,
-        selected_options: c.selected_options,
-        notes: c.notes,
-      }));
-
-      const order: Order = {
-        order_id: orderId,
-        pickup_code: pickupCode,
-        status: 'RECEIVED',
-        location_id: locationId,
-        location_name: location.name,
-        total_amount: total,
-        payment_method: paymentMethod,
-        remaining_balance: session.huskybucks_balance - (paymentMethod === 'HUSKYBUCKS' ? total : 0),
-        estimated_ready_time: estimatedReady.toISOString(),
-        created_at: now.toISOString(),
-        ready_at: null,
-        completed_at: null,
-        items: orderItems,
-        customer_name: session.name,
-      };
-
-      // Deduct balance
-      setSession((prev) => {
-        if (paymentMethod === 'HUSKYBUCKS') return { ...prev, huskybucks_balance: Math.round((prev.huskybucks_balance - total) * 100) / 100 };
-        if (paymentMethod === 'FLEX_PASS') return { ...prev, flex_passes: prev.flex_passes - 1 };
-        if (paymentMethod === 'POINTS') return { ...prev, dining_points: prev.dining_points - Math.ceil(total * 10) };
-        return prev;
-      });
-
-      setOrders((prev) => [order, ...prev]);
-      clearCart();
-      return order;
-    },
-    [cart, cartTotal, session, clearCart]
-  );
+    updateBalances((b) => ({ ...b, huskybucks_balance: remaining }));
+    setOrders((prev) => [order, ...prev]);
+    clearCart();
+    return order;
+  }, [demoAuth, studentId, cart, menuItems, balances.huskybucks_balance, updateBalances, clearCart]);
 
   const advanceOrderStatus = useCallback((orderId: string) => {
     setOrders((prev) =>
@@ -344,27 +363,28 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const cancelOrder = useCallback((orderId: string) => {
+    const order = orders.find((o) => o.order_id === orderId);
+    if (!order || order.status !== 'RECEIVED') return;
     setOrders((prev) =>
-      prev.map((o) => {
-        if (o.order_id !== orderId || o.status !== 'RECEIVED') return o;
-        // Refund
-        setSession((s) => {
-          if (o.payment_method === 'HUSKYBUCKS') return { ...s, huskybucks_balance: Math.round((s.huskybucks_balance + o.total_amount) * 100) / 100 };
-          if (o.payment_method === 'FLEX_PASS') return { ...s, flex_passes: s.flex_passes + 1 };
-          return s;
-        });
-        return { ...o, status: 'CANCELLED' };
-      })
+      prev.map((o) => (o.order_id === orderId && o.status === 'RECEIVED' ? { ...o, status: 'CANCELLED' } : o))
     );
-  }, []);
+    // Refund simulated HuskyBucks (the only accepted method). Kept outside the
+    // setOrders updater so StrictMode's double-invoke cannot refund twice.
+    if (order.payment_method === 'HUSKYBUCKS') {
+      updateBalances((b) => ({
+        ...b,
+        huskybucks_balance: fromCents(Math.round(b.huskybucks_balance * 100) + Math.round(order.total_amount * 100)),
+      }));
+    }
+  }, [orders, updateBalances]);
 
   const resetSession = useCallback(() => {
-    setSession({ ...MOCK_USER });
+    setBalancesByUser({});
     setOrders([]);
     setCart([]);
     setAvailabilityOverrides({});
     localStorage.removeItem(ORDERS_KEY);
-    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(BALANCES_KEY);
     localStorage.removeItem(AVAIL_KEY);
   }, []);
 
@@ -392,6 +412,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         updateCartQty,
         clearCart,
         cartTotal,
+        cartLocationId,
         orders,
         placeOrder,
         advanceOrderStatus,

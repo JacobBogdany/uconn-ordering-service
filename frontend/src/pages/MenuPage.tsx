@@ -102,8 +102,9 @@ export default function MenuPage() {
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
           onAddToCart={(cartItem: CartItem) => {
-            addToCart(cartItem);
-            setSelectedItem(null);
+            const result = addToCart(cartItem);
+            if (result.ok) setSelectedItem(null);
+            return result;
           }}
         />
       )}

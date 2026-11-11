@@ -42,6 +42,8 @@ Requirements: Node.js/npm and Python 3.11 or newer.
 
    Open the URL printed by Vite (normally `http://localhost:5173`). The login page’s Student and Operator buttons request a short-lived role-scoped demo session from the API.
 
+Backend tests: `pip install -r backend\requirements-dev.txt`, then `pytest backend\tests`.
+
 ## Configuration
 
 - `backend/.env` is read only by the Python API. Use `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` there when connecting Supabase. The service-role key bypasses RLS and must never be added to a `VITE_*` variable or frontend file.
@@ -55,15 +57,18 @@ Requirements: Node.js/npm and Python 3.11 or newer.
 ```text
 backend/app/
   api/routes/    health, demo, catalog, checkout, and order route boundaries
-  security/      signed demo sessions and future authorization helpers
-  services/      shared catalog, checkout, and order services
+  security/      signed demo sessions and role guards (require_student / require_operator)
+  services/      shared catalog, checkout, and order services (checkout_rules.py)
+  checkout_schemas.py  balance and order request/response models
+backend/tests/   pytest suite
   config.py      environment-backed settings
   database.py    lazy server-side Supabase client
 frontend/src/
   pages/         reusable student and operator screens
+  features/checkout/  shared checkout rules (validation, pricing, request builder)
   context/       local demo state adapter
 supabase/migrations/
   initial Postgres schema
 ```
 
-The shared project decisions and individual three-week tasks are in [`context/master.md`](context/master.md) and the `context/todo_*.md` files.
+The shared project decisions and individual three-week tasks are in [`context/master.md`](context/master.md) and the `context/todo_*.md` files. The checkout contract (rules, request/response, errors, identity) is in [`context/checkout_contract.md`](context/checkout_contract.md).
