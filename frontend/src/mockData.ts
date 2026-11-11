@@ -1,11 +1,18 @@
 import type { Location, MenuItem } from './types';
 
 /**
- * Illustrative starting balances for the local mock adapter only. Identity comes
- * from the signed demo session (user_id/display_name); there is no mock user id.
- * Mirrors the profiles table defaults. With Supabase connected, use
- * GET /api/users/me/balance instead.
+ * ============================================================================
+ * ILLUSTRATIVE SAMPLE DATA ONLY
+ * ============================================================================
+ * NOTE: The menu items, prices, modifiers, operating hours, and balances below
+ * are illustrative sample data for local frontend development and the zero-DB
+ * fallback. They DO NOT represent live or verified UConn Dining data.
+ *
+ * In production or Supabase-connected mode, this catalog is served dynamically
+ * from the database via GET /api/locations and GET /api/locations/:id/menu.
+ * ============================================================================
  */
+
 export const MOCK_STARTING_BALANCES = {
   huskybucks_balance: 50.0,
   flex_passes: 10,
@@ -14,7 +21,7 @@ export const MOCK_STARTING_BALANCES = {
 
 export const MOCK_LOCATIONS: Location[] = [
   {
-    id: 'beanery',
+    id: '10000000-0000-4000-8000-000000000001',
     name: 'The Beanery',
     building: 'Benton Center',
     hours: '7:30 AM – 4:00 PM',
@@ -23,7 +30,7 @@ export const MOCK_LOCATIONS: Location[] = [
     estimated_wait_minutes: 8,
   },
   {
-    id: 'bookworms',
+    id: '10000000-0000-4000-8000-000000000002',
     name: 'Bookworms Cafe',
     building: 'Homer Babbidge Library',
     hours: '8:00 AM – 8:00 PM',
@@ -32,7 +39,7 @@ export const MOCK_LOCATIONS: Location[] = [
     estimated_wait_minutes: 15,
   },
   {
-    id: 'putnam',
+    id: '10000000-0000-4000-8000-000000000003',
     name: 'Putnam Grab-and-Go',
     building: 'Putnam Dining Hall',
     hours: '7:00 AM – 2:00 PM',
@@ -43,10 +50,12 @@ export const MOCK_LOCATIONS: Location[] = [
 ];
 
 export const MOCK_MENU_ITEMS: MenuItem[] = [
-  // --- The Beanery ---
+  // ==========================================================================
+  // THE BEANERY (5 items)
+  // ==========================================================================
   {
-    id: 'item-101',
-    location_id: 'beanery',
+    id: '20000000-0000-4000-8000-000000000101',
+    location_id: '10000000-0000-4000-8000-000000000001',
     name: 'Iced Vanilla Latte',
     description: 'Espresso with cold milk and sweet Madagascar vanilla syrup.',
     category: 'Beverages',
@@ -68,8 +77,8 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
         max_select: 1,
         options: [
           { name: 'Whole Milk', price_delta: 0.0 },
-          { name: 'Oat Milk', price_delta: 0.80 },
-          { name: 'Almond Milk', price_delta: 0.80 },
+          { name: 'Oat Milk', price_delta: 0.8 },
+          { name: 'Almond Milk', price_delta: 0.8 },
         ],
       },
       {
@@ -77,17 +86,17 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
         required: false,
         max_select: 3,
         options: [
-          { name: 'Extra Espresso Shot', price_delta: 1.00 },
-          { name: 'Vanilla Syrup', price_delta: 0.50 },
-          { name: 'Caramel Drizzle', price_delta: 0.50 },
+          { name: 'Extra Espresso Shot', price_delta: 1.0 },
+          { name: 'Vanilla Syrup', price_delta: 0.5 },
+          { name: 'Caramel Drizzle', price_delta: 0.5 },
         ],
       },
     ],
     is_available: true,
   },
   {
-    id: 'item-102',
-    location_id: 'beanery',
+    id: '20000000-0000-4000-8000-000000000102',
+    location_id: '10000000-0000-4000-8000-000000000001',
     name: 'Cold Brew Coffee',
     description: 'Smooth, slow-steeped cold brew served over ice.',
     category: 'Beverages',
@@ -100,19 +109,19 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
         max_select: 1,
         options: [
           { name: 'Medium (16oz)', price_delta: 0.0 },
-          { name: 'Large (20oz)', price_delta: 0.60 },
+          { name: 'Large (20oz)', price_delta: 0.6 },
         ],
       },
     ],
     is_available: true,
   },
   {
-    id: 'item-103',
-    location_id: 'beanery',
+    id: '20000000-0000-4000-8000-000000000103',
+    location_id: '10000000-0000-4000-8000-000000000001',
     name: 'Drip Coffee',
     description: 'Fresh-brewed house blend, served hot.',
     category: 'Beverages',
-    base_price: 2.50,
+    base_price: 2.5,
     dietary_tags: ['vegan', 'gluten-free', 'dairy-free'],
     customization_groups: [
       {
@@ -121,20 +130,20 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
         max_select: 1,
         options: [
           { name: 'Small (12oz)', price_delta: 0.0 },
-          { name: 'Medium (16oz)', price_delta: 0.60 },
-          { name: 'Large (20oz)', price_delta: 1.10 },
+          { name: 'Medium (16oz)', price_delta: 0.6 },
+          { name: 'Large (20oz)', price_delta: 1.1 },
         ],
       },
     ],
     is_available: true,
   },
   {
-    id: 'item-104',
-    location_id: 'beanery',
+    id: '20000000-0000-4000-8000-000000000104',
+    location_id: '10000000-0000-4000-8000-000000000001',
     name: 'Asiago Bagel Sandwich',
     description: 'Toasted asiago bagel with egg, cheddar, and your choice of protein.',
     category: 'Sandwiches',
-    base_price: 5.50,
+    base_price: 5.5,
     dietary_tags: ['vegetarian'],
     customization_groups: [
       {
@@ -170,8 +179,8 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     is_available: true,
   },
   {
-    id: 'item-105',
-    location_id: 'beanery',
+    id: '20000000-0000-4000-8000-000000000105',
+    location_id: '10000000-0000-4000-8000-000000000001',
     name: 'Blueberry Muffin',
     description: 'Freshly baked, bursting with wild blueberries.',
     category: 'Bakery',
@@ -181,10 +190,12 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     is_available: true,
   },
 
-  // --- Bookworms Cafe ---
+  // ==========================================================================
+  // BOOKWORMS CAFE (5 items)
+  // ==========================================================================
   {
-    id: 'item-201',
-    location_id: 'bookworms',
+    id: '20000000-0000-4000-8000-000000000201',
+    location_id: '10000000-0000-4000-8000-000000000002',
     name: 'Turkey Avocado Wrap',
     description: 'Sliced turkey, creamy avocado, romaine lettuce and tomato in a whole-wheat wrap.',
     category: 'Sandwiches',
@@ -205,23 +216,23 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     is_available: true,
   },
   {
-    id: 'item-202',
-    location_id: 'bookworms',
+    id: '20000000-0000-4000-8000-000000000202',
+    location_id: '10000000-0000-4000-8000-000000000002',
     name: 'Hummus & Veggie Plate',
     description: 'House-made hummus with sliced cucumber, carrots, and pita chips.',
     category: 'Snacks',
-    base_price: 4.50,
-    dietary_tags: ['vegan', 'dairy-free'],
+    base_price: 4.5,
+    dietary_tags: ['vegan', 'dairy-free', 'halal'],
     customization_groups: [],
     is_available: true,
   },
   {
-    id: 'item-203',
-    location_id: 'bookworms',
+    id: '20000000-0000-4000-8000-000000000203',
+    location_id: '10000000-0000-4000-8000-000000000002',
     name: 'Matcha Latte',
     description: 'Ceremonial grade matcha whisked with steamed milk.',
     category: 'Beverages',
-    base_price: 5.00,
+    base_price: 5.0,
     dietary_tags: ['vegetarian', 'gluten-free'],
     customization_groups: [
       {
@@ -248,9 +259,9 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     is_available: true,
   },
   {
-    id: 'item-204',
-    location_id: 'bookworms',
-    name: 'Kind Bar',
+    id: '20000000-0000-4000-8000-000000000204',
+    location_id: '10000000-0000-4000-8000-000000000002',
+    name: 'Dark Chocolate Almond Kind Bar',
     description: 'Almond & dark chocolate flavored snack bar.',
     category: 'Snacks',
     base_price: 2.25,
@@ -258,38 +269,73 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     customization_groups: [],
     is_available: true,
   },
-
-  // --- Putnam Grab-and-Go ---
   {
-    id: 'item-301',
-    location_id: 'putnam',
-    name: 'Overnight Oats',
+    id: '20000000-0000-4000-8000-000000000205',
+    location_id: '10000000-0000-4000-8000-000000000002',
+    name: 'Iced Spiced Chai Latte',
+    description: 'Black tea infused with cardamom, cinnamon, clove, ginger, and honey.',
+    category: 'Beverages',
+    base_price: 4.95,
+    dietary_tags: ['vegetarian', 'gluten-free'],
+    customization_groups: [
+      {
+        group_name: 'Milk Choice',
+        required: true,
+        max_select: 1,
+        options: [
+          { name: 'Whole Milk', price_delta: 0.0 },
+          { name: 'Oat Milk', price_delta: 0.8 },
+          { name: 'Almond Milk', price_delta: 0.8 },
+        ],
+      },
+    ],
+    is_available: true,
+  },
+
+  // ==========================================================================
+  // PUTNAM GRAB-AND-GO (4 items)
+  // ==========================================================================
+  {
+    id: '20000000-0000-4000-8000-000000000301',
+    location_id: '10000000-0000-4000-8000-000000000003',
+    name: 'Overnight Oats with Chia',
     description: 'Creamy oats with chia seeds, banana, and honey.',
     category: 'Grab-and-Go',
-    base_price: 3.50,
+    base_price: 3.5,
     dietary_tags: ['vegetarian', 'gluten-free'],
     customization_groups: [],
     is_available: true,
   },
   {
-    id: 'item-302',
-    location_id: 'putnam',
-    name: 'Greek Yogurt Parfait',
+    id: '20000000-0000-4000-8000-000000000302',
+    location_id: '10000000-0000-4000-8000-000000000003',
+    name: 'Greek Yogurt Berry Parfait',
     description: 'Layered greek yogurt with house granola and mixed berry compote.',
     category: 'Grab-and-Go',
-    base_price: 4.00,
+    base_price: 4.0,
     dietary_tags: ['vegetarian', 'gluten-free'],
     customization_groups: [],
     is_available: true,
   },
   {
-    id: 'item-303',
-    location_id: 'putnam',
-    name: 'Fresh Fruit Cup',
+    id: '20000000-0000-4000-8000-000000000303',
+    location_id: '10000000-0000-4000-8000-000000000003',
+    name: 'Fresh Seasonal Fruit Cup',
     description: 'Seasonal mixed fruit, freshly cut daily.',
     category: 'Grab-and-Go',
     base_price: 2.75,
     dietary_tags: ['vegan', 'gluten-free', 'dairy-free', 'halal'],
+    customization_groups: [],
+    is_available: true,
+  },
+  {
+    id: '20000000-0000-4000-8000-000000000304',
+    location_id: '10000000-0000-4000-8000-000000000003',
+    name: 'Protein Bistro Box',
+    description: 'Hard-boiled egg, sharp cheddar cheese slices, apple slices, and peanut butter.',
+    category: 'Grab-and-Go',
+    base_price: 5.25,
+    dietary_tags: ['vegetarian', 'gluten-free'],
     customization_groups: [],
     is_available: true,
   },
