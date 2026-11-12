@@ -16,15 +16,15 @@ Own the runtime foundation, order status/tracking, KDS, and API integration. Jac
 
 ## Milestone 2 — Week 2 (Nov 16–22): Order lifecycle and student tracking
 
-- [ ] Implement `GET /api/orders/{order_id}` with owner/staff authorization and line-item snapshot response.
-- [ ] Implement validated status transition service and `PATCH /api/orders/{order_id}/status`; set lifecycle timestamps server-side.
-- [ ] Implement staff-scoped active queue query by location with item details and elapsed time.
-- [ ] Connect the existing student tracking page to the API and poll at roughly five-second intervals with loading/error states.
-- [ ] Connect or refine KDS columns/actions for received, prepping, and ready orders; ensure completed orders leave the active queue.
-- [ ] Bind the demo role choice to a backend-recognized student or operator identity/session. Gate it behind explicit demo mode; do not accept a role header or arbitrary client user ID as authorization.
-- [ ] Coordinate checkout response shape with Vin and catalog location/menu shape with Jacob.
+- [x] Implement `GET /api/orders/{order_id}` with student-owner/operator authorization and line-item snapshot response.
+- [x] Implement validated status transitions and `PATCH /api/orders/{order_id}/status`; set lifecycle timestamps server-side and use a status compare-and-update to catch concurrent actions.
+- [x] Implement operator active queue query by location with item details and elapsed time.
+- [x] Connect the existing student tracking page to the API and poll every five seconds with loading/error states.
+- [x] Connect KDS columns/actions for received, prepping, and ready orders; completed orders leave the active queue.
+- [x] Bind the existing demo role choice to the backend-recognized signed student/operator session. Order routes require that bearer token; operator maps to `staff` and request bodies cannot choose a user ID or role.
+- [ ] Integrate the routes with Vin’s persisted checkout and Jacob’s catalog IDs. Current UI uses mock fallback when Supabase is unavailable; final cross-slice flow needs their API work/configured Supabase data.
 
-**Acceptance:** an order created by checkout appears in the correct queue, advances only through legal states, and the student view reflects updates without manual refresh.
+**Acceptance:** route and UI implementation is in place. End-to-end persisted acceptance remains pending the checkout/catalog integration above and configured Supabase data.
 
 ## Milestone 3 — Week 3 (Nov 23–29): Integration and Render release
 

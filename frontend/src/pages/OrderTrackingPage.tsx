@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDemo } from '../context/DemoContext';
 import type { Order, OrderStatus } from '../types';
@@ -9,6 +9,7 @@ const STEPS: { status: OrderStatus; label: string; icon: string }[] = [
   { status: 'READY', label: 'Ready for Pickup', icon: '✅' },
   { status: 'COMPLETED', label: 'Picked Up', icon: '🎉' },
 ];
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 
 function getStepIndex(status: OrderStatus): number {
   const map: Record<OrderStatus, number> = { RECEIVED: 0, PREPPING: 1, READY: 2, COMPLETED: 3, CANCELLED: -1 };
@@ -21,25 +22,43 @@ function formatTime(iso: string): string {
 
 export default function OrderTrackingPage() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { getOrderById, cancelOrder, orders } = useDemo();
+  const { getOrderById, cancelOrder, demoAuth } = useDemo();
   const navigate = useNavigate();
-
-  // Re-read order on every render (polls localStorage via context)
   const [order, setOrder] = useState<Order | undefined>(() => getOrderById(orderId ?? ''));
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const refresh = useCallback(async () => {
+    if (!orderId || !demoAuth) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/${encodeURIComponent(orderId)}`, { headers: { Authorization: `Bearer ${demoAuth.access_token}` } });
+      if (response.status === 503 || response.status === 404) {
+        setOrder(getOrderById(orderId));
+      } else if (!response.ok) {
+        throw new Error(`Order refresh failed (${response.status}).`);
+      } else {
+        setOrder(await response.json() as Order);
+      }
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to refresh order status.');
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId, demoAuth, getOrderById]);
 
-  // Poll every 2s (simulates real-time, reads from localStorage which staff KDS updates)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setOrder(getOrderById(orderId ?? ''));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [orderId, getOrderById, orders]);
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 5000);
+    return () => window.clearInterval(interval);
+  }, [refresh]);
+
+  if (loading && !order) return <div className="py-20 text-center text-gray-500">Loading order…</div>;
 
   if (!order) {
     return (
       <div className="text-center py-20">
         <div className="text-5xl mb-4">🔍</div>
-        <div className="text-gray-500">Order not found.</div>
+        <div className="text-gray-500">{error ?? 'Order not found.'}</div>
         <button onClick={() => navigate('/locations')} className="mt-4 text-blue-600 hover:underline text-sm">Back to Home</button>
       </div>
     );
@@ -50,6 +69,7 @@ export default function OrderTrackingPage() {
 
   return (
     <div className="max-w-md mx-auto">
+      {error && <p role="status" className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Could not refresh order status. Showing the last available update.</p>}
       {/* Pickup Code Banner */}
       <div className={`rounded-2xl p-6 mb-6 text-center ${isCancelled ? 'bg-red-50 border-2 border-red-200' : 'bg-blue-700 text-white'}`}>
         <div className={`text-sm font-medium mb-1 ${isCancelled ? 'text-red-600' : 'text-blue-200'}`}>
