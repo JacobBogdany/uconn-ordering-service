@@ -1,6 +1,6 @@
 # Jacob Bogdany — Catalog and Slice 1
 
-Own location/menu catalog, dietary filters, availability management, and representative seed data. Coordinate API and shared schema changes before implementation.
+Own location/menu catalog, dietary filters, availability management, representative seed data, and all Supabase and Render setup/deployment. Coordinate API and shared schema changes before implementation.
 
 ## Milestone 1 — Week 1 (Nov 10–15): Catalog contract and database foundation
 
@@ -38,5 +38,8 @@ Own location/menu catalog, dietary filters, availability management, and represe
 - [ ] Verify seed and migration instructions from a clean database and record how to refresh demo data safely.
 - [ ] Confirm the deployed demo has all three seeded venues and menu items/modifiers, and both demo identities can use them.
 - [ ] Review the final demo flow and resolve catalog defects before release.
+- [ ] Own Supabase project setup and release configuration: apply committed migrations, enable/verify RLS, run the repeatable seed, and set demo identity UUIDs.
+- [ ] Own Render deployment for both API Web Service and frontend Static Site; configure build/start commands, `VITE_API_URL`, CORS origins, health check/SPA fallback, and Supabase secrets in Render environment settings.
+- [ ] Verify the deployed API connects to the intended Supabase project, the frontend reaches the API, and the complete demo works from the published URL. Record URLs and safe redeploy/seed steps in the README without committing credentials.
 
-**Acceptance:** deployed catalog, filters, modifiers, and inventory state agree with checkout and remain correct after refresh.
+**Acceptance:** deployed catalog, filters, modifiers, and inventory state agree with checkout and remain correct after refresh; Jacob owns the deployed Supabase/Render configuration and records the operational handoff.
