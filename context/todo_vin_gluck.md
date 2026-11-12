@@ -32,6 +32,6 @@ Own balance display, customization, cart, server-side pricing, and simulated che
 - [ ] Verify that cart display and server total agree for combinations, quantities, and notes; handle changed/unavailable menu items gracefully.
 - [ ] Confirm balance remains nonnegative and order snapshots preserve the purchased item/options if catalog data later changes.
 - [ ] Support any agreed cancellation/refund behavior only if time permits and implement it transactionally; otherwise document it as out of scope.
-- [ ] Walk through checkout on the deployed app and fix the highest-impact mobile and error-state issues.
+- [ ] Walk through checkout on Jacob’s deployed app and fix the highest-impact mobile and error-state issues; send deployment/configuration issues to Jacob rather than changing deployment settings.
 
 **Acceptance:** deployed customer flow can browse, customize, pay with the agreed simulated method, receive one pickup code, and enter tracking with accurate receipt details.

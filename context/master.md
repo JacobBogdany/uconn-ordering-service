@@ -6,8 +6,8 @@ HuskyBite is a mobile-first ordering experience for UConn campus cafes and grab-
 
 **Team and ownership**
 
-- **Vincent Nguyen — Architecture and Slice 3:** repository structure, API/runtime integration, order tracking, KDS, and Render deployment.
-- **Jacob Bogdany — Catalog and Slice 1:** locations, menus, dietary filters, inventory, and catalog seed data.
+- **Vincent Nguyen — Architecture and Slice 3:** repository structure, API/runtime integration, order tracking, KDS, and backend release handoff.
+- **Jacob Bogdany — Catalog and Slice 1 plus deployment owner:** locations, menus, dietary filters, inventory, catalog/demo-user seed, Supabase project/schema/RLS setup, and all Render deployment/configuration for the frontend and backend.
 - **Vin Gluck — Checkout and Slice 2:** user balances, customization, cart, pricing, and checkout.
 
 The owners lead their slice and coordinate shared contracts before changing them. Work is reviewed by another teammate before merging. Keep route and feature code in the owner’s folders to reduce conflicts.
@@ -20,7 +20,7 @@ The project has three weeks total, including the current week. Each week ends wi
 
 1. **Week 1 — Nov 10–15, Foundation and catalog:** agree on the contract and database migration; establish the backend and Supabase connection; make the existing frontend catalog a coherent API-backed or explicitly mocked experience.
 2. **Week 2 — Nov 16–22, Checkout vertical slice:** server-authoritative pricing and simulated payment; persist orders and line-item snapshots; connect cart, confirmation, and order detail.
-3. **Week 3 — Nov 23–29, Operations and release:** staff inventory and KDS state transitions; student tracking; integrate, verify core flows, and deploy frontend/backend on Render.
+3. **Week 3 — Nov 23–29, Operations and release:** staff inventory and KDS state transitions; student tracking; integrate and verify core flows. Jacob owns applying/configuring Supabase and deploying frontend/backend on Render; Vincent and Vin provide release-ready code and support integration checks.
 
 The repository already contains a substantial React/Vite UI and mock flow, despite the old roadmap marking the demo as future work. Audit it first and reuse working components. There is no backend directory, and the frontend currently has two mock-data modules with different sample users/data; resolve duplication during Week 1. The team’s stated three-week schedule supersedes the old five-week roadmap.
 
@@ -37,7 +37,7 @@ The repository already contains a substantial React/Vite UI and mock flow, despi
 - Place an order using simulated campus balance; show a unique pickup code.
 - Staff can mark an item unavailable and advance an order through `RECEIVED → PREPPING → READY → COMPLETED`.
 - Student can see the order’s current status. Polling about every five seconds is adequate; realtime transport is optional only if the core flow is complete.
-- Deploy a working demo using Render. Keep all payment simulated; do not collect real payment credentials.
+- Deploy a working demo using Render (**Jacob owns deployment**). Keep all payment simulated; do not collect real payment credentials.
 
 ### Cut or defer
 
@@ -101,15 +101,15 @@ Remove the old `X-User-Role` header as an authorization mechanism. Demo login ac
 
 - **Frontend:** existing React 19 + Vite + TypeScript SPA. Keep feature code grouped under `frontend/src/features/{catalog,checkout,queue}` (or map current page/component files deliberately); use one API client and one canonical type module.
 - **Backend:** add a Python FastAPI service (Pydantic validation, Supabase/Postgres client, CORS restricted to deployed frontend plus local development). Keep catalog, checkout, and queue routes separate. One language/framework is the default unless the existing team has already built backend work.
-- **Database:** Supabase Postgres; schema changes are versioned as SQL migrations committed to the repository. Enable RLS and test intended policies. Keep the Supabase service-role key and database credentials in Render environment secrets only.
-- **Hosting:** Render Web Service for API and Render Static Site for Vite frontend. Configure `VITE_API_URL`, backend CORS origin, and secret database settings. Add health endpoint and SPA fallback as needed. Do not commit `.env` files.
+- **Database (Jacob):** Supabase Postgres; schema changes are versioned as SQL migrations committed to the repository. Jacob applies/configures the schema, RLS, and seed in the Supabase project. Keep the Supabase service-role key and database credentials in Render environment secrets only.
+- **Hosting (Jacob):** own Render Web Service for API and Render Static Site for Vite frontend. Configure `VITE_API_URL`, backend CORS origin, secret database settings, build/start commands, health check, and SPA fallback. Do not commit `.env` files.
 - **Seed owner and requirement:** Jacob owns the idempotent database seed for Beanery, Bookworms, Putnam Grab-and-Go, representative menu items/modifiers, and demo student/operator profiles. This is a named deliverable, not optional sample data. It must work on an empty database and be safe to re-run; mark sample balances, hours, and menus as illustrative.
 - **Demo access:** Vincent owns the role-choice screen and demo session integration. Display **Log in as Student** and **Log in as Operator** (operator maps to `staff`); both must lead to distinct role-appropriate views using backend-recognized demo identities. Keep this mode explicitly gated and document how it is enabled.
 - **Mock parity:** retain a single mock adapter/data source for local UI work; switch to API using a documented environment/config flag. Avoid two divergent mock modules or storage as a substitute for cross-device server state.
 
 ## Shared working agreements
 
-1. Week 1 locks the schema, error format, status/payment enums, API examples, and TypeScript/Pydantic models. Vincent owns the initial core Supabase migration; Jacob owns catalog seed data; propose later changes in the shared contract and notify affected owners.
+1. Week 1 locks the schema, error format, status/payment enums, API examples, and TypeScript/Pydantic models. Vincent owns the initial core Supabase migration; Jacob owns catalog seed data and Supabase/Render deployment; propose later changes in the shared contract and notify affected owners.
 2. Each owner works in their feature folders and opens small reviewable changes. Review another owner’s work before integration.
 3. Keep `.env` and service credentials out of Git. Commit migrations, sanitized seed data, and setup instructions.
 4. Every milestone includes a short integrated demo and a handoff note: completed behavior, known limitation, and how to run it.
@@ -124,7 +124,7 @@ Remove the old `X-User-Role` header as an authorization mechanism. Demo login ac
 - **Demo readiness:** a reviewer must enter as either student or operator with one click; seed data must be present after the documented setup/reset command.
 - **Supabase RLS and service key:** do not expose privileged keys in Vite variables; the `VITE_` prefix is public.
 - **Existing frontend drift:** duplicate mock data, existing page implementation, and legacy contract may disagree. Audit and consolidate rather than rebuilding from assumptions.
-- **Render free-instance behavior:** cold starts and persistence assumptions can affect demos. Supabase remains the persistent data source; verify deployed health and frontend API URL before final demo.
+- **Render free-instance behavior:** Jacob verifies cold-start behavior, health checks, and frontend API URL before final demo. Supabase remains the persistent data source.
 
 ## Definition of done
 
