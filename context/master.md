@@ -121,6 +121,7 @@ Remove the old `X-User-Role` header as an authorization mechanism. Demo login ac
 - **Three-week constraint:** the former plan had five weeks of work. Prioritize a single end-to-end path with seeded data; cut optional history, real auth, analytics, notifications, and advanced estimates.
 - **Payment scope:** the first demo accepts HuskyBucks only. Pass and points redemption rules are deferred; no real transaction integrations.
 - **Authorization:** role headers are trivially spoofed. Enforce identity and staff checks in the backend, even for a demo.
+- **Operator scope:** the demo operator can access all seeded venues because the initial profile schema has no staff-to-location assignment. Do not use this global demo role for real staff accounts.
 - **Demo readiness:** a reviewer must enter as either student or operator with one click; seed data must be present after the documented setup/reset command.
 - **Supabase RLS and service key:** do not expose privileged keys in Vite variables; the `VITE_` prefix is public.
 - **Existing frontend drift:** duplicate mock data, existing page implementation, and legacy contract may disagree. Audit and consolidate rather than rebuilding from assumptions.

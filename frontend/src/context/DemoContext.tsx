@@ -325,11 +325,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       location_name: priced.location.name,
       total_amount: fromCents(priced.totalCents),
       payment_method: request.payment_method,
-      remaining_balance: remaining,
-      estimated_ready_time: new Date(now.getTime() + 10 * 60 * 1000).toISOString(),
+      estimated_prep_minutes: 10,
       created_at: now.toISOString(),
-      ready_at: null,
-      completed_at: null,
       items: priced.lines.map((line) => ({ id: uuidv4(), ...line })),
       customer_name: demoAuth.display_name,
     };
@@ -351,12 +348,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         };
         const next = transitions[o.status];
         if (!next) return o;
-        const now = new Date().toISOString();
         return {
           ...o,
           status: next,
-          ready_at: next === 'READY' ? now : o.ready_at,
-          completed_at: next === 'COMPLETED' ? now : o.completed_at,
         };
       })
     );
