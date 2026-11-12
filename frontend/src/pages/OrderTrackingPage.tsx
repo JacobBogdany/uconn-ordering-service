@@ -20,11 +20,16 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function estimateReadyAt(order: Order): string {
+  return new Date(new Date(order.created_at).getTime() + order.estimated_prep_minutes * 60_000).toISOString();
+}
+
 export default function OrderTrackingPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const { getOrderById, cancelOrder, demoAuth } = useDemo();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | undefined>(() => getOrderById(orderId ?? ''));
+  const [isMockOrder, setIsMockOrder] = useState(Boolean(getOrderById(orderId ?? '')));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const refresh = useCallback(async () => {
@@ -33,10 +38,12 @@ export default function OrderTrackingPage() {
       const response = await fetch(`${API_BASE_URL}/api/orders/${encodeURIComponent(orderId)}`, { headers: { Authorization: `Bearer ${demoAuth.access_token}` } });
       if (response.status === 503 || response.status === 404) {
         setOrder(getOrderById(orderId));
+        setIsMockOrder(Boolean(getOrderById(orderId)));
       } else if (!response.ok) {
         throw new Error(`Order refresh failed (${response.status}).`);
       } else {
         setOrder(await response.json() as Order);
+        setIsMockOrder(false);
       }
       setError(null);
     } catch (cause) {
@@ -83,7 +90,7 @@ export default function OrderTrackingPage() {
         </div>
         {!isCancelled && order.status !== 'COMPLETED' && (
           <div className="text-xs text-blue-200 mt-1">
-            Est. ready by {formatTime(order.estimated_ready_time)}
+            Est. ready by {formatTime(estimateReadyAt(order))}
           </div>
         )}
       </div>
@@ -149,7 +156,7 @@ export default function OrderTrackingPage() {
       </div>
 
       {/* Cancel Button (only while RECEIVED) */}
-      {order.status === 'RECEIVED' && (
+      {isMockOrder && order.status === 'RECEIVED' && (
         <button
           onClick={() => cancelOrder(order.order_id)}
           className="w-full border-2 border-red-200 text-red-500 font-semibold py-3 rounded-xl hover:bg-red-50 transition-colors text-sm"

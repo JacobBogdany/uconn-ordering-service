@@ -56,13 +56,11 @@ export interface Order {
   location_name: string;
   total_amount: number;
   payment_method: PaymentMethod;
-  remaining_balance: number;
-  estimated_ready_time: string;
+  estimated_prep_minutes: number;
   created_at: string;
-  ready_at: string | null;
-  completed_at: string | null;
   items: OrderItem[];
-  customer_name: string;
+  customer_name?: string;
+  time_elapsed_minutes?: number;
 }
 
 export type ViewRole = 'student' | 'staff';
@@ -166,6 +164,9 @@ export interface CreateOrderResponse {
     huskybucks_balance: number;
   };
 }
+
+/** GET /api/orders/{id}: the persisted order representation, excluding balance. */
+export type OrderDetailResponse = Omit<CreateOrderResponse, 'balance'> & { customer_name?: string };
 
 export type CheckoutErrorCode =
   | 'VALIDATION_ERROR'

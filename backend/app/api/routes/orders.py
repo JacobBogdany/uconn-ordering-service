@@ -3,7 +3,8 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict
 
 from app.database import get_supabase_client
 from app.security.authorization import require_demo_identity, require_operator
@@ -12,6 +13,12 @@ router = APIRouter(tags=["orders"])
 ACTIVE = ("RECEIVED", "PREPPING", "READY")
 NEXT = {"RECEIVED": "PREPPING", "PREPPING": "READY", "READY": "COMPLETED"}
 TIME_COLUMN = {"PREPPING": "prepping_at", "READY": "ready_at", "COMPLETED": "completed_at"}
+
+
+class OrderStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: str
 
 
 def _client():
@@ -36,15 +43,12 @@ def _order_detail(client, row: dict[str, Any]) -> dict[str, Any]:
             "line_total": round(unit * int(item["quantity"]), 2), "selected_options": item.get("selected_options") or [],
             "notes": item.get("notes"),
         })
-    created = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
-    estimate = created.timestamp() + int(row.get("estimated_prep_minutes", 10)) * 60
     return {
         "order_id": str(row["id"]), "pickup_code": row["pickup_code"], "status": row["status"],
         "location_id": str(row["location_id"]), "location_name": locations[0]["name"],
         "total_amount": float(row["total_amount"]), "payment_method": row["payment_method"],
-        "remaining_balance": 0, "estimated_ready_time": datetime.fromtimestamp(estimate, timezone.utc).isoformat(),
-        "created_at": row["created_at"], "ready_at": row.get("ready_at"),
-        "completed_at": row.get("completed_at"), "items": items,
+        "estimated_prep_minutes": int(row.get("estimated_prep_minutes", 10)),
+        "created_at": row["created_at"], "items": items,
     }
 
 
@@ -89,8 +93,8 @@ def get_order(order_id: str, identity: dict[str, Any] = Depends(require_demo_ide
 
 
 @router.patch("/orders/{order_id}/status")
-def update_order_status(order_id: str, payload: dict[str, str], identity: dict[str, Any] = Depends(require_operator)):
-    next_status = payload.get("status")
+def update_order_status(order_id: str, payload: OrderStatusUpdate, identity: dict[str, Any] = Depends(require_operator)):
+    next_status = payload.status
     if next_status not in TIME_COLUMN:
         raise HTTPException(422, "Status must be PREPPING, READY, or COMPLETED.")
     client = _client()

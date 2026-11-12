@@ -29,8 +29,9 @@ Own the runtime foundation, order status/tracking, KDS, and API integration. Jac
 ## Milestone 3 — Week 3 (Nov 23–29): Integration and Render release
 
 - [ ] Integrate the end-to-end student and staff flow with the other owners; fix contract mismatches and deployment-specific issues.
-- [ ] Provide Jacob the API build/start command, required environment-variable names, CORS requirements, and health-check path; help resolve API-side deployment issues.
+- [x] Align persisted `GET /api/orders/{id}` with the checkout response contract (order snapshot without balance); derive the displayed ready estimate from `created_at` plus `estimated_prep_minutes`, and keep mock-only cancellation from appearing on persisted orders.
+- [x] Provide Jacob the API build/start command, required environment-variable names, CORS requirements, and health-check path in the README; help resolve API-side deployment issues if they arise.
 - [ ] Validate order tracking, queue polling, and status transitions against Jacob’s deployed API/Supabase environment; report defects with reproduction steps.
 - [ ] Complete the student/operator end-to-end integration review with Vin and Jacob and hand off API limitations/run instructions; do not own Render or Supabase configuration.
 
-**Acceptance:** Vincent’s API is ready for Jacob to deploy, and status actions persist and appear in student tracking in the shared deployment. Jacob owns deployment configuration and the release runbook.
+**Acceptance:** Vincent’s API build/start and configuration handoff are documented and ready for Jacob to deploy. Persisted end-to-end verification remains dependent on Vin’s checkout implementation, Jacob’s catalog/Supabase setup, and Jacob’s Render deployment.

@@ -1,6 +1,6 @@
 # HuskyBite
 
-HuskyBite is a UConn campus dining demo for browsing cafe menus, placing a simulated order, and viewing the operator order queue. The frontend currently runs the ordering flow against local mock data; the FastAPI backend provides health and signed demo-session endpoints while the feature APIs are built.
+HuskyBite is a UConn campus dining demo for browsing cafe menus, placing a simulated order, and viewing the operator order queue. The FastAPI backend provides health, signed demo-session, balance, order-detail, queue, and status-transition endpoints. Catalog routes and persistent checkout still depend on the other feature slices; the frontend retains a local mock adapter where those APIs are not yet available.
 
 ## Existing frontend audit
 
@@ -29,7 +29,7 @@ Requirements: Node.js/npm and Python 3.11 or newer.
 
    The API runs at `http://localhost:8000`. `GET /api/health` reports API health and whether Supabase credentials are configured. `POST /api/demo/login` is available only when `DEMO_MODE=true`.
 
-   Render API settings: set the service root to the repository root, build with `pip install -r backend/requirements.txt`, and start with `uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend`.
+   **Render API handoff (Jacob owns deployment):** set the service root to the repository root, build with `pip install -r backend/requirements.txt`, and start with `uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend`.
 
 3. In another terminal, install and start the frontend:
 
@@ -50,7 +50,10 @@ Backend tests: `pip install -r backend\requirements-dev.txt`, then `pytest backe
 - `DEMO_MODE=true` enables the demo login endpoint. Set a private `DEMO_SESSION_SECRET`; use `DEMO_STUDENT_USER_ID` and `DEMO_OPERATOR_USER_ID` for the corresponding seeded Supabase Auth UUIDs when the data-backed endpoints are connected.
 - `FRONTEND_ORIGINS` is a comma-separated allowlist. Add the exact deployed frontend origin in Render settings.
 - `frontend/.env.local` may set `VITE_API_URL`; the default is `http://localhost:8000`.
-- The initial database migration is `supabase/migrations/20261110120000_initial_schema.sql`. Catalog and demo-user seed data are owned by the catalog slice and will be added separately.
+- The initial database migration is `supabase/migrations/20261110120000_initial_schema.sql`; sample data is in `supabase/seed.sql` with the Python runner `python -m app.seed`. Jacob owns applying and verifying these against the team’s Supabase project and configuring Render.
+- The Render API health check is `GET /api/health`. It reports API health and whether both Supabase server credentials are configured; it does not expose secret values.
+- Keep the Supabase service-role key and demo-session secret in Render’s backend environment settings only. Set `DEMO_STUDENT_USER_ID` and `DEMO_OPERATOR_USER_ID` to the seeded profile UUIDs.
+- The single demo operator can access every seeded venue. Location-specific staff assignment is outside the demo schema and must be added before using real staff accounts.
 
 ## Project structure
 
@@ -60,9 +63,9 @@ backend/app/
   security/      signed demo sessions and role guards (require_student / require_operator)
   services/      shared catalog, checkout, and order services (checkout_rules.py)
   checkout_schemas.py  balance and order request/response models
-backend/tests/   pytest suite
   config.py      environment-backed settings
   database.py    lazy server-side Supabase client
+backend/tests/   pytest suite
 frontend/src/
   pages/         reusable student and operator screens
   features/checkout/  shared checkout rules (validation, pricing, request builder)
