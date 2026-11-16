@@ -22,13 +22,27 @@ Own location/menu catalog, dietary filters, availability management, and represe
 
 ## Milestone 2 — Week 2 (Nov 16–22): Catalog API and staff inventory
 
-- [ ] Implement `GET /api/locations` and `GET /api/locations/{id}/menu`, including category, modifiers, and optional dietary filtering.
-- [ ] Implement staff-authorized `PATCH /api/menu/{item_id}/availability` with validation and useful errors.
-- [ ] Connect location/menu browsing and dietary/search controls to the API, with explicit loading, empty, and failure states.
-- [ ] Connect staff inventory toggles to persisted availability and show the resulting state to student browsing.
-- [ ] Coordinate catalog price/modifier shape with Vin’s server-side checkout calculator.
+- [x] Implement `GET /api/locations` and `GET /api/locations/{id}/menu`, including category, modifiers, and optional dietary filtering.
+- [x] Implement staff-authorized `PATCH /api/menu/{item_id}/availability` with validation and useful errors.
+- [x] Connect location/menu browsing and dietary/search controls to the API, with explicit loading, empty, and failure states.
+- [x] Connect staff inventory toggles to persisted availability and show the resulting state to student browsing.
+- [x] Coordinate catalog price/modifier shape with Vin’s server-side checkout calculator.
 
 **Acceptance:** catalog is read from seeded Supabase-backed API; filtering works; staff availability change persists and is reflected on reload.
+
+**Handoff (Milestone 2):**
+- **Catalog Schemas:** `backend/app/catalog_schemas.py` defines models for locations, categorized menu items, relational modifier groups and options, availability updates, and legacy backwards-compatibility adapters.
+- **Catalog Routes:** `backend/app/api/routes/catalog.py` provides:
+  - `GET /api/locations`: lists active dining venues, operational status, and active order wait estimates.
+  - `GET /api/locations/{id}/menu`: returns menu items with modifier groups and options, supporting optional comma-separated `?dietary=...` filtering. Accepts location ID or slug.
+  - `PATCH /api/menu/{item_id}/availability`: staff-authorized toggle (`require_operator`) updating `is_available` in Supabase `menu_items`.
+- **Automated Tests:** `backend/tests/test_catalog_routes.py` provides 8 unit tests covering status codes, dietary subset filtering, modifiers, wait calculations, role gating (401/403), and 404 validation.
+- **Frontend Integration:**
+  - `frontend/src/context/DemoContext.tsx`: connects locations, menu items, and staff availability toggles to the API with graceful fallback to mock data when Supabase is unconfigured.
+  - `frontend/src/pages/LocationsPage.tsx`: connected with explicit loading skeleton, failure retry banner, and empty state.
+  - `frontend/src/pages/MenuPage.tsx`: connected to API menu query with dietary tag filters, search filtering, loading state, error retry, and empty state.
+  - `frontend/src/pages/InventoryPage.tsx`: connected to API menu fetch and real-time persisted availability toggle.
+- **Checkout Coordination:** aligned with `services/checkout_rules.py` (`MenuItemRow`, `ModifierGroupRow`, `ModifierOptionRow`) so checkout calculator and catalog data shapes agree.
 
 ## Milestone 3 — Week 3 (Nov 23–29): Catalog integration and release readiness
 

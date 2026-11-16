@@ -19,6 +19,7 @@ import {
 import type {
   BalanceResponse,
   CartItem,
+  DietaryTag,
   Location,
   MenuItem,
   Order,
@@ -121,11 +122,17 @@ interface DemoContextType {
 
   // Locations
   locations: Location[];
+  locationsLoading: boolean;
+  locationsError: string | null;
+  refreshLocations: () => Promise<void>;
 
   // Menu
   menuItems: MenuItem[];
-  toggleItemAvailability: (itemId: string) => void;
+  catalogLoading: boolean;
+  catalogError: string | null;
+  toggleItemAvailability: (itemId: string) => Promise<void>;
   getMenuForLocation: (locationId: string) => MenuItem[];
+  fetchMenuForLocation: (locationId: string, dietaryTags?: DietaryTag[]) => Promise<MenuItem[]>;
 
   // Cart
   cart: CartItem[];
@@ -190,17 +197,124 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('storage', handler);
   }, []);
 
-  const menuItems: MenuItem[] = MOCK_MENU_ITEMS.map((item) => ({
+  const [locations, setLocations] = useState<Location[]>(MOCK_LOCATIONS);
+  const [locationsLoading, setLocationsLoading] = useState<boolean>(false);
+  const [locationsError, setLocationsError] = useState<string | null>(null);
+
+  const [apiMenuItems, setApiMenuItems] = useState<MenuItem[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState<boolean>(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+
+  const refreshLocations = useCallback(async () => {
+    setLocationsLoading(true);
+    setLocationsError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/locations`);
+      if (response.ok) {
+        const data = await response.json() as Location[];
+        if (Array.isArray(data) && data.length > 0) {
+          setLocations(data);
+          return;
+        }
+      } else if (response.status !== 503) {
+        setLocationsError(`Failed to load locations (${response.status}).`);
+      }
+    } catch (err) {
+      console.warn('Backend /api/locations unreachable; using local mock data:', err);
+    } finally {
+      setLocationsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    async function initLocations() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/locations`);
+        if (!ignore && response.ok) {
+          const data = await response.json() as Location[];
+          if (Array.isArray(data) && data.length > 0) {
+            setLocations(data);
+          }
+        }
+      } catch {
+        // Silently preserve mock locations when backend/Supabase is unconfigured
+      }
+    }
+    void initLocations();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Combine fetched API menu items with MOCK_MENU_ITEMS, applying availability overrides
+  const baseItems = apiMenuItems.length > 0 ? apiMenuItems : MOCK_MENU_ITEMS;
+  const menuItems: MenuItem[] = baseItems.map((item) => ({
     ...item,
     is_available: availabilityOverrides[item.id] ?? item.is_available,
   }));
 
-  const toggleItemAvailability = useCallback((itemId: string) => {
-    setAvailabilityOverrides((prev) => {
-      const current = prev[itemId] ?? (MOCK_MENU_ITEMS.find((i) => i.id === itemId)?.is_available ?? true);
-      return { ...prev, [itemId]: !current };
-    });
-  }, []);
+  const toggleItemAvailability = useCallback(async (itemId: string) => {
+    const current = availabilityOverrides[itemId] ?? (menuItems.find((i) => i.id === itemId)?.is_available ?? true);
+    const nextState = !current;
+    setAvailabilityOverrides((prev) => ({ ...prev, [itemId]: nextState }));
+    setApiMenuItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, is_available: nextState } : item)));
+
+    if (demoAuth?.access_token && demoAuth?.role === 'staff') {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/menu/${itemId}/availability`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${demoAuth.access_token}`,
+          },
+          body: JSON.stringify({ is_available: nextState }),
+        });
+        if (!response.ok && response.status !== 503) {
+          console.warn(`PATCH /api/menu/${itemId}/availability returned ${response.status}`);
+        }
+      } catch (err) {
+        console.warn('Network error updating item availability on backend:', err);
+      }
+    }
+  }, [availabilityOverrides, demoAuth, menuItems]);
+
+  const fetchMenuForLocation = useCallback(async (locationId: string, dietaryTags?: DietaryTag[]): Promise<MenuItem[]> => {
+    setCatalogLoading(true);
+    setCatalogError(null);
+    try {
+      const query = dietaryTags && dietaryTags.length > 0 ? `?dietary=${encodeURIComponent(dietaryTags.join(','))}` : '';
+      const response = await fetch(`${API_BASE_URL}/api/locations/${locationId}/menu${query}`);
+      if (response.ok) {
+        const data = await response.json() as MenuItem[];
+        if (Array.isArray(data)) {
+          setApiMenuItems((prev) => {
+            const others = prev.filter((item) => item.location_id !== locationId);
+            return [...others, ...data];
+          });
+          return data.map((item) => ({
+            ...item,
+            is_available: availabilityOverrides[item.id] ?? item.is_available,
+          }));
+        }
+      } else if (response.status !== 503) {
+        setCatalogError(`Failed to load menu (${response.status}).`);
+      }
+    } catch (err) {
+      console.warn(`Unable to fetch /api/locations/${locationId}/menu, falling back to local data:`, err);
+    } finally {
+      setCatalogLoading(false);
+    }
+
+    let items = MOCK_MENU_ITEMS.filter((i) => i.location_id === locationId).map((item) => ({
+      ...item,
+      is_available: availabilityOverrides[item.id] ?? item.is_available,
+    }));
+    if (dietaryTags && dietaryTags.length > 0) {
+      items = items.filter((item) => dietaryTags.every((t) => item.dietary_tags.includes(t)));
+    }
+    return items;
+  }, [availabilityOverrides]);
 
   const getMenuForLocation = useCallback(
     (locationId: string) => menuItems.filter((i) => i.location_id === locationId),
@@ -402,10 +516,16 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         logoutDemo,
         session,
         resetSession,
-        locations: MOCK_LOCATIONS,
+        locations,
+        locationsLoading,
+        locationsError,
+        refreshLocations,
         menuItems,
+        catalogLoading,
+        catalogError,
         toggleItemAvailability,
         getMenuForLocation,
+        fetchMenuForLocation,
         cart,
         addToCart,
         removeFromCart,

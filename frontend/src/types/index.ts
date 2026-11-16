@@ -21,11 +21,13 @@ export interface MenuItem {
   base_price: number;
   dietary_tags: DietaryTag[];
   customization_groups: CustomizationGroup[];
+  modifier_groups?: ModifierGroup[];
   is_available: boolean;
 }
 
 export interface Location {
   id: string;
+  slug?: string;
   name: string;
   building: string;
   hours: string;
