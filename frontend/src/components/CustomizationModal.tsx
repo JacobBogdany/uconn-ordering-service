@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CartItem, MenuItem, ModifierGroup } from '../types';
 import type { AddToCartResult } from '../context/DemoContext';
 import {
@@ -32,6 +32,16 @@ export default function CustomizationModal({ item, onClose, onAddToCart }: Props
   const [qty, setQty] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const selectedIds = groups.flatMap((g) => selections[g.id] ?? []);
   const validation = validateSelections(item.name, groups, selectedIds);
@@ -80,17 +90,29 @@ export default function CustomizationModal({ item, onClose, onAddToCart }: Props
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
 
       {/* Modal */}
-      <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="customization-modal-title"
+        className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
           <div>
-            <div className="font-bold text-blue-900 text-lg">{item.name}</div>
+            <h2 id="customization-modal-title" className="font-bold text-blue-900 text-lg">{item.name}</h2>
             <div className="text-sm text-gray-500">{item.description}</div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-4 mt-0.5 text-xl leading-none">×</button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close modal"
+            className="text-gray-400 hover:text-gray-600 ml-4 mt-0.5 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            ×
+          </button>
         </div>
 
         {/* Scrollable body */}
@@ -169,9 +191,23 @@ export default function CustomizationModal({ item, onClose, onAddToCart }: Props
         <div className="border-t border-gray-100 p-5 flex items-center gap-3">
           {/* Qty */}
           <div className="flex items-center gap-2 border border-gray-200 rounded-full px-2 py-1">
-            <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-7 h-7 rounded-full text-blue-700 font-bold hover:bg-blue-50 flex items-center justify-center">−</button>
-            <span className="text-sm font-semibold w-4 text-center">{qty}</span>
-            <button onClick={() => setQty((q) => Math.min(MAX_QUANTITY_PER_LINE, q + 1))} className="w-7 h-7 rounded-full text-blue-700 font-bold hover:bg-blue-50 flex items-center justify-center">+</button>
+            <button
+              type="button"
+              aria-label="Decrease quantity"
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              className="w-8 h-8 rounded-full text-blue-700 font-bold hover:bg-blue-50 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              −
+            </button>
+            <span className="text-sm font-semibold w-5 text-center" aria-live="polite">{qty}</span>
+            <button
+              type="button"
+              aria-label="Increase quantity"
+              onClick={() => setQty((q) => Math.min(MAX_QUANTITY_PER_LINE, q + 1))}
+              className="w-8 h-8 rounded-full text-blue-700 font-bold hover:bg-blue-50 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              +
+            </button>
           </div>
 
           <button

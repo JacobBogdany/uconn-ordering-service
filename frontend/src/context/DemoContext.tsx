@@ -379,8 +379,29 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, [accessToken, studentId]);
 
   useEffect(() => {
-    void refreshBalance();
-  }, [refreshBalance]);
+    let ignore = false;
+    async function loadBalance() {
+      if (!accessToken || !studentId) {
+        if (!ignore) setApiBalance(null);
+        return;
+      }
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users/me/balance`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!ignore) {
+          if (response.ok) setApiBalance((await response.json()) as BalanceResponse);
+          else setApiBalance(null);
+        }
+      } catch {
+        // Keep whatever balance is showing if the API is briefly unreachable.
+      }
+    }
+    void loadBalance();
+    return () => {
+      ignore = true;
+    };
+  }, [accessToken, studentId]);
 
   const updateBalances = useCallback(
     (update: (current: MockBalances) => MockBalances) => {

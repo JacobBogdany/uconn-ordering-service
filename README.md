@@ -29,8 +29,6 @@ Requirements: Node.js/npm and Python 3.11 or newer.
 
    The API runs at `http://localhost:8000`. `GET /api/health` reports API health and whether Supabase credentials are configured. `POST /api/demo/login` is available only when `DEMO_MODE=true`.
 
-   **Render API handoff (Jacob owns deployment):** set the service root to the repository root, build with `pip install -r backend/requirements.txt`, and start with `uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend`.
-
 3. In another terminal, install and start the frontend:
 
    ```powershell
@@ -44,16 +42,73 @@ Requirements: Node.js/npm and Python 3.11 or newer.
 
 Backend tests: `pip install -r backend\requirements-dev.txt`, then `pytest backend\tests`.
 
-## Configuration
+## Database Setup & Safe Reset Runbook (Supabase)
 
-- `backend/.env` is read only by the Python API. Use `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` there when connecting Supabase. The service-role key bypasses RLS and must never be added to a `VITE_*` variable or frontend file.
-- `DEMO_MODE=true` enables the demo login endpoint. Set a private `DEMO_SESSION_SECRET`; use `DEMO_STUDENT_USER_ID` and `DEMO_OPERATOR_USER_ID` for the corresponding seeded Supabase Auth UUIDs when the data-backed endpoints are connected.
-- `FRONTEND_ORIGINS` is a comma-separated allowlist. Add the exact deployed frontend origin in Render settings.
-- `frontend/.env.local` may set `VITE_API_URL`; the default is `http://localhost:8000`.
-- Apply the migrations in order: `supabase/migrations/20261110120000_initial_schema.sql`, then `20261117120000_checkout.sql` (atomic checkout function, idempotency, pickup codes). Checkout fails with 503 until the second one is applied. The initial migration is `supabase/migrations/20261110120000_initial_schema.sql`; sample data is in `supabase/seed.sql` with the Python runner `python -m app.seed`. Jacob owns applying and verifying these against the team’s Supabase project and configuring Render.
-- The Render API health check is `GET /api/health`. It reports API health and whether both Supabase server credentials are configured; it does not expose secret values.
-- Keep the Supabase service-role key and demo-session secret in Render’s backend environment settings only. Set `DEMO_STUDENT_USER_ID` and `DEMO_OPERATOR_USER_ID` to the seeded profile UUIDs.
-- The single demo operator can access every seeded venue. Location-specific staff assignment is outside the demo schema and must be added before using real staff accounts.
+To configure a clean Supabase database or reset sample demo data:
+
+### 1. Initial Clean Database Setup
+In the **Supabase SQL Editor**, execute the migration and seed files in this exact sequence:
+
+1. **Base Schema**: Run [`supabase/migrations/20261110120000_initial_schema.sql`](supabase/migrations/20261110120000_initial_schema.sql)
+   - Creates `profiles`, `locations`, `menu_items`, `modifier_groups`, `modifier_options`, `orders`, and `order_items` tables with RLS and trigger functions.
+2. **Catalog & Identity Seed**: Run [`supabase/seed.sql`](supabase/seed.sql) (or run `python -m app.seed` from `backend/` with credentials configured in `backend/.env`)
+   - Populates the 3 campus venues (`The Beanery`, `Bookworms Cafe`, `Putnam Grab-and-Go`), 14 representative menu items, 12 modifier groups with 33 options, and the demo student and operator profiles.
+3. **Checkout Migration**: Run [`supabase/migrations/20261117120000_checkout.sql`](supabase/migrations/20261117120000_checkout.sql)
+   - Installs the `place_order` stored procedure, `pickup_counters`, and idempotency constraints for atomic checkout.
+
+### 2. Safe Demo Data Reset
+To reset orders and restore student balances to initial demo states without dropping catalog tables:
+- In the Supabase SQL Editor:
+  ```sql
+  truncate table public.orders cascade;
+  truncate table public.pickup_counters;
+  update public.profiles set huskybucks_balance = 50.00, flex_passes = 10, dining_points = 120;
+  update public.menu_items set is_available = true;
+  ```
+- Re-run [`supabase/seed.sql`](supabase/seed.sql) if any menu items or locations were modified or deleted.
+
+## Deployment Runbook (Render)
+
+### Option A: 1-Click Deployment via Render Blueprint (`render.yaml`)
+1. Push your repository to GitHub.
+2. Log into [dashboard.render.com](https://dashboard.render.com).
+3. Click **New +** $\rightarrow$ **Blueprint**.
+4. Select your `uconn-ordering-service` repository.
+5. In the blueprint configuration screen, populate the two secret variables:
+   - `SUPABASE_URL`: Your Supabase Project URL (`https://<project-ref>.supabase.co`).
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your server-side service role secret key.
+   - `FRONTEND_ORIGINS`: Set to your deployed frontend URL (e.g. `https://huskybite-frontend.onrender.com`).
+6. Click **Apply**. Render will automatically build and link both services.
+
+### Option B: Manual Service Setup in Render Dashboard
+
+#### 1. FastAPI Web Service (`huskybite-api`)
+- **Type**: Web Service
+- **Environment**: Python
+- **Root Directory**: `.` (leave empty / repository root)
+- **Build Command**: `pip install -r backend/requirements.txt`
+- **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend`
+- **Health Check Path**: `/api/health`
+- **Environment Variables**:
+  - `APP_ENV`: `production`
+  - `DEMO_MODE`: `true`
+  - `DEMO_SESSION_SECRET`: Generate a 48+ character random token (`python -c "import secrets; print(secrets.token_urlsafe(48))"`).
+  - `DEMO_SESSION_TTL_MINUTES`: `60`
+  - `DEMO_STUDENT_USER_ID`: `00000000-0000-4000-8000-000000000001`
+  - `DEMO_OPERATOR_USER_ID`: `00000000-0000-4000-8000-000000000002`
+  - `SUPABASE_URL`: `https://<your-project-ref>.supabase.co`
+  - `SUPABASE_SERVICE_ROLE_KEY`: `<your-supabase-service-role-key>`
+  - `FRONTEND_ORIGINS`: `https://huskybite-frontend.onrender.com`
+
+#### 2. Vite Frontend Static Site (`huskybite-frontend`)
+- **Type**: Static Site
+- **Root Directory**: `frontend`
+- **Build Command**: `npm install && npm run build`
+- **Publish Directory**: `dist`
+- **Environment Variables**:
+  - `VITE_API_URL`: `https://huskybite-api.onrender.com` (your backend URL)
+- **Redirects / Rewrites**:
+  - Add Rule: **Source**: `/*` $\rightarrow$ **Destination**: `/index.html` $\rightarrow$ **Action**: `Rewrite` (ensures client-side routing works for `/locations`, `/staff/kds`, etc.).
 
 ## Project structure
 
@@ -61,17 +116,21 @@ Backend tests: `pip install -r backend\requirements-dev.txt`, then `pytest backe
 backend/app/
   api/routes/    health, demo, catalog, checkout, and order route boundaries
   security/      signed demo sessions and role guards (require_student / require_operator)
-  services/      shared catalog, checkout, and order services (checkout_rules.py)
+  services/      shared catalog, checkout, and order services (checkout_rules.py, checkout_service.py)
+  catalog_schemas.py   catalog models and modifiers
   checkout_schemas.py  balance and order request/response models
   config.py      environment-backed settings
-  database.py    lazy server-side Supabase client
+  database.py    lazy server-side Supabase client with URL normalization
 backend/tests/   pytest suite
 frontend/src/
-  pages/         reusable student and operator screens
+  pages/         reusable student and operator screens (Locations, Menu, Inventory, KDS, Tracking)
   features/checkout/  shared checkout rules (validation, pricing, request builder)
   context/       local demo state adapter
 supabase/migrations/
-  initial Postgres schema
+  20261110120000_initial_schema.sql  initial Postgres schema & RLS
+  20261117120000_checkout.sql        atomic checkout, idempotency & pickup codes
+supabase/seed.sql                     idempotent venue and menu seed
+render.yaml                           infrastructure-as-code deployment blueprint
 ```
 
 The shared project decisions and individual three-week tasks are in [`context/master.md`](context/master.md) and the `context/todo_*.md` files. The checkout contract (rules, request/response, errors, identity) is in [`context/checkout_contract.md`](context/checkout_contract.md).

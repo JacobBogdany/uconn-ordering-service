@@ -14,13 +14,13 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Role Switcher Banner */}
-      <div className="bg-blue-900 text-white text-center text-sm py-1.5 flex items-center justify-center gap-4">
+      <div className="bg-blue-900 text-white text-center text-xs sm:text-sm py-1.5 px-3 flex flex-wrap items-center justify-center gap-2 sm:gap-4">
         <span className="font-medium">🎓 Demo Mode</span>
         <span className="text-blue-100">Signed in as {demoAuth?.persona === 'operator' ? 'Operator' : 'Student'}</span>
         <button
           type="button"
           onClick={() => { logoutDemo(); navigate('/login'); }}
-          className="rounded-full border border-blue-300 px-3 py-0.5 text-xs font-semibold text-white transition-colors hover:bg-blue-800"
+          className="rounded-full border border-blue-300 px-3 py-0.5 text-xs font-semibold text-white transition-colors hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-white"
         >
           Switch demo role
         </button>
@@ -29,20 +29,25 @@ export default function Layout() {
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/locations" className="flex items-center gap-2 no-underline">
-            <span className="text-2xl">🐾</span>
+          <Link to="/locations" className="flex items-center gap-2 no-underline" aria-label="HuskyBite Home">
+            <span className="text-2xl" aria-hidden="true">🐾</span>
             <div>
               <div className="font-bold text-blue-900 text-lg leading-none">HuskyBite</div>
               <div className="text-xs text-gray-500 leading-none">UConn Campus Dining</div>
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {viewRole === 'student' && (
               <>
                 <div className="text-right hidden sm:block">
                   <div className="text-xs text-gray-500">{session.display_name}</div>
                   <div className="text-sm font-semibold text-green-700">${session.huskybucks_balance.toFixed(2)} HuskyBucks</div>
+                </div>
+
+                {/* Mobile compact balance */}
+                <div className="sm:hidden flex items-center bg-green-50 text-green-800 text-xs font-bold px-2 py-1 rounded-full border border-green-200" title="Your HuskyBucks Balance">
+                  ${session.huskybucks_balance.toFixed(2)}
                 </div>
 
                 {activeOrder && (

@@ -1,0 +1,52 @@
+services:
+  # ---------------------------------------------------------------------------
+  # FastAPI Web Service
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: huskybite-api
+    runtime: python
+    plan: free
+    rootDir: .
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEMO_MODE
+        value: "true"
+      - key: DEMO_SESSION_SECRET
+        generateValue: true
+      - key: DEMO_SESSION_TTL_MINUTES
+        value: "60"
+      - key: DEMO_STUDENT_USER_ID
+        value: "00000000-0000-4000-8000-000000000001"
+      - key: DEMO_OPERATOR_USER_ID
+        value: "00000000-0000-4000-8000-000000000002"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FRONTEND_ORIGINS
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # Vite React Static Site
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: huskybite-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: huskybite-api
+          envVarKey: RENDER_EXTERNAL_URL
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
