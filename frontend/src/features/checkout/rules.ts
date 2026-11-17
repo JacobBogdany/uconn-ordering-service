@@ -50,7 +50,10 @@ export const formatMoney = (dollars: number): string => `$${dollars.toFixed(2)}`
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 export function modifierGroupsForItem(item: MenuItem): ModifierGroup[] {
-  return item.customization_groups.map((group, groupIndex) => {
+  if (item.modifier_groups && item.modifier_groups.length > 0) {
+    return item.modifier_groups;
+  }
+  return (item.customization_groups || []).map((group, groupIndex) => {
     const groupId = `${item.id}/${slug(group.group_name)}`;
     return {
       id: groupId,
