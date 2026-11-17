@@ -17,14 +17,22 @@ Own balance display, customization, cart, server-side pricing, and simulated che
 
 ## Milestone 2 — Week 2 (Nov 16–22): Persisted checkout vertical slice
 
-- [ ] Implement balance lookup through the backend.
-- [ ] Implement server-authoritative price calculation from current menu and modifier rows; never accept client totals/prices.
-- [ ] Implement atomic checkout: verify item availability and selections, check funds, debit simulated balance, create order and item snapshots in one transaction.
-- [ ] Generate collision-safe pickup codes and return order confirmation, remaining simulated balance, and item snapshots.
-- [ ] Connect customization modal, cart quantity controls, payment choice (only agreed methods), loading/errors, and confirmation to the API.
-- [ ] Coordinate new order response and status read expectations with Vincent’s tracking/KDS work.
+- [x] Implement balance lookup through the backend.
+- [x] Implement server-authoritative price calculation from current menu and modifier rows; never accept client totals/prices.
+- [x] Implement atomic checkout: verify item availability and selections, check funds, debit simulated balance, create order and item snapshots in one transaction.
+- [x] Generate collision-safe pickup codes and return order confirmation, remaining simulated balance, and item snapshots.
+- [x] Connect customization modal, cart quantity controls, payment choice (only agreed methods), loading/errors, and confirmation to the API.
+- [x] Coordinate new order response and status read expectations with Vincent’s tracking/KDS work.
 
 **Acceptance:** valid checkout persists a correctly priced order once; insufficient funds, invalid modifiers, or stale availability leave balance and orders unchanged; repeated submission does not double charge.
+
+**Handoff (Milestone 2):**
+- **Migration:** `supabase/migrations/20261117120000_checkout.sql` adds `orders.idempotency_key` (unique per user), `order_items.line_no`, `pickup_counters`, and the service-role-only function `place_order`. Jacob must apply it to the Supabase project after the initial migration and seed.
+- **API:** `POST /api/orders` (`routes/checkout.py`, `services/checkout_service.py`) needs an `Idempotency-Key` header; CORS now allows it. `GET /api/users/me/balance` is unchanged.
+- **Frontend:** cart/checkout calls the API (balance from `/users/me/balance`, receipt from the response); the mock checkout is used only on a `503`.
+- **Tests:** `pytest backend/tests` (19 new route tests with a fake client). `backend/tests/verify_checkout_sql.py` runs the migration on a throwaway Postgres: atomic debit, replay, stale price/availability, insufficient funds, concurrent codes, overdraw race.
+- **For Vincent:** `GET /api/orders/{id}` now returns lines in order and snapshots written by checkout (`price_delta` is a number). Persisted orders are fetched by the tracking page, not stored in local mock state.
+- **Not yet verified:** against Jacob's live Supabase project (needs the migration applied and `DEMO_*` ids set), and in the browser end to end.
 
 ## Milestone 3 — Week 3 (Nov 23–29): Checkout integration and edge cases
 

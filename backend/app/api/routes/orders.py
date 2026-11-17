@@ -33,7 +33,7 @@ def _order_detail(client, row: dict[str, Any]) -> dict[str, Any]:
     locations = location_result.data or []
     if not locations:
         raise HTTPException(404, "Order location not found.")
-    items_result = client.table("order_items").select("*").eq("order_id", row["id"]).execute()
+    items_result = client.table("order_items").select("*").eq("order_id", row["id"]).order("line_no").execute()
     items = []
     for item in items_result.data or []:
         unit = float(item["unit_price"])

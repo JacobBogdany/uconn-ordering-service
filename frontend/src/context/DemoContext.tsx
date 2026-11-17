@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -17,11 +18,14 @@ import {
   priceOrder,
 } from '../features/checkout/rules';
 import type {
+  ApiErrorBody,
   BalanceResponse,
   CartItem,
+  CreateOrderResponse,
   DietaryTag,
   Location,
   MenuItem,
+  CreateOrderRequest,
   Order,
   DemoAuthSession,
   DemoPersona,
@@ -104,6 +108,27 @@ function generatePickupCode(locationId: string, existing: Order[]): string {
   throw new CheckoutRuleError('VALIDATION_ERROR', 'No pickup codes available. Reset the demo.');
 }
 
+/** Convert a non-2xx checkout response into the same error type the mock adapter throws. */
+async function readCheckoutError(response: Response): Promise<CheckoutRuleError> {
+  let detail: unknown;
+  try {
+    detail = ((await response.json()) as { detail?: unknown }).detail;
+  } catch {
+    detail = undefined;
+  }
+  if (detail && typeof detail === 'object' && !Array.isArray(detail) && 'code' in detail) {
+    const d = detail as ApiErrorBody['detail'];
+    return new CheckoutRuleError(d.code, d.message, d.field ?? undefined);
+  }
+  if (response.status === 401) {
+    return new CheckoutRuleError('VALIDATION_ERROR', 'Your demo session expired. Log in again to check out.');
+  }
+  if (response.status === 422) {
+    return new CheckoutRuleError('VALIDATION_ERROR', 'Some order details were invalid. Review your cart and try again.');
+  }
+  return new CheckoutRuleError('VALIDATION_ERROR', `Checkout failed (${response.status}). Please try again.`);
+}
+
 export type AddToCartResult = { ok: true } | { ok: false; message: string };
 
 
@@ -118,6 +143,8 @@ interface DemoContextType {
   // Session: identity from the signed demo session; balances from the mock adapter
   // (GET /api/users/me/balance once Supabase is seeded).
   session: BalanceResponse;
+  /** Re-read the balance from GET /api/users/me/balance (no-op in mock mode). */
+  refreshBalance: () => Promise<void>;
   resetSession: () => void;
 
   // Locations
@@ -160,6 +187,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [balancesByUser, setBalancesByUser] = useState<Record<string, MockBalances>>(loadBalances);
   const [orders, setOrders] = useState<Order[]>(loadOrders);
   const [cart, setCart] = useState<CartItem[]>([]);
+  // Server balance for the signed-in student; null means the mock adapter is in use
+  // (API without Supabase, or no seeded profile yet).
+  const [apiBalance, setApiBalance] = useState<BalanceResponse | null>(null);
+  // One key per checkout attempt. Reused while the same cart is retried so a repeated
+  // submit (double click, flaky network) cannot charge twice; replaced when the cart changes.
+  const idempotencyRef = useRef<{ signature: string; key: string } | null>(null);
   const [availabilityOverrides, setAvailabilityOverrides] = useState<Record<string, boolean>>(loadAvailability);
 
   // Sync orders to localStorage and listen for changes from other tabs
@@ -323,11 +356,31 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const studentId = demoAuth?.role === 'student' ? demoAuth.user_id : null;
   const balances: MockBalances = (studentId && balancesByUser[studentId]) || MOCK_STARTING_BALANCES;
-  const session: BalanceResponse = {
-    user_id: studentId ?? '',
-    display_name: demoAuth?.display_name ?? '',
-    ...balances,
-  };
+  const session: BalanceResponse = apiBalance && apiBalance.user_id === studentId
+    ? apiBalance
+    : {
+        user_id: studentId ?? '',
+        display_name: demoAuth?.display_name ?? '',
+        ...balances,
+      };
+
+  const accessToken = demoAuth?.access_token;
+  const refreshBalance = useCallback(async () => {
+    if (!accessToken || !studentId) return; // session ignores apiBalance for other users
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/me/balance`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.ok) setApiBalance((await response.json()) as BalanceResponse);
+      else setApiBalance(null); // 503/404: Supabase or seed missing -> mock balances
+    } catch {
+      // Keep whatever balance is showing if the API is briefly unreachable.
+    }
+  }, [accessToken, studentId]);
+
+  useEffect(() => {
+    void refreshBalance();
+  }, [refreshBalance]);
 
   const updateBalances = useCallback(
     (update: (current: MockBalances) => MockBalances) => {
@@ -410,20 +463,22 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const logoutDemo = useCallback(() => {
     setDemoAuth(null);
     setViewRole('student');
+    setApiBalance(null);
+    idempotencyRef.current = null;
   }, []);
 
   const cartTotal = fromCents(cartTotalCents(cart));
 
   /**
-   * Mock stand-in for POST /api/orders. Follows the server contract: sends only
+   * Mock stand-in for POST /api/orders, used only when the API reports that Supabase
+   * is not configured (503). Follows the server contract: sends only
    * ids/quantities/options/notes, re-prices from current catalog rows (ignoring
    * cart prices), accepts HuskyBucks only, checks funds, then debits and records.
    */
-  const placeOrder = useCallback(async (): Promise<Order> => {
-    if (!demoAuth || demoAuth.role !== 'student' || !studentId) {
+  const placeMockOrder = useCallback(async (request: CreateOrderRequest): Promise<Order> => {
+    if (!demoAuth || !studentId) {
       throw new CheckoutRuleError('VALIDATION_ERROR', 'Sign in as a student to check out.');
     }
-    const request = buildCreateOrderRequest(cart);
     await new Promise((r) => setTimeout(r, 400)); // simulate network latency
 
     const priced = priceOrder(request, menuItems, MOCK_LOCATIONS);
@@ -449,7 +504,63 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setOrders((prev) => [order, ...prev]);
     clearCart();
     return order;
-  }, [demoAuth, studentId, cart, menuItems, balances.huskybucks_balance, updateBalances, clearCart]);
+  }, [demoAuth, studentId, menuItems, balances.huskybucks_balance, updateBalances, clearCart]);
+
+  /**
+   * POST /api/orders. The server prices from current menu rows, then debits
+   * HuskyBucks and stores the order atomically; the request carries only ids,
+   * quantities, option ids and notes. Falls back to the mock adapter only when the
+   * API says Supabase is not configured (503).
+   */
+  const placeOrder = useCallback(async (): Promise<Order> => {
+    if (!demoAuth || demoAuth.role !== 'student' || !studentId) {
+      throw new CheckoutRuleError('VALIDATION_ERROR', 'Sign in as a student to check out.');
+    }
+    const request = buildCreateOrderRequest(cart);
+
+    const signature = JSON.stringify(request);
+    if (idempotencyRef.current?.signature !== signature) {
+      idempotencyRef.current = { signature, key: uuidv4() };
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/api/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${demoAuth.access_token}`,
+          'Idempotency-Key': idempotencyRef.current.key,
+        },
+        body: JSON.stringify(request),
+      });
+    } catch {
+      // Keep the key: retrying the same cart cannot double charge.
+      throw new Error('Could not reach the server. You have not been charged; please try again.');
+    }
+
+    if (response.status === 503) {
+      const order = await placeMockOrder(request);
+      idempotencyRef.current = null;
+      return order;
+    }
+    if (!response.ok) {
+      const error = await readCheckoutError(response);
+      if (error.code === 'ITEM_UNAVAILABLE' || error.code === 'NOT_FOUND') {
+        // Menu changed under the cart: refresh so the UI shows current availability.
+        void fetchMenuForLocation(request.location_id);
+      }
+      throw error;
+    }
+
+    const { balance, ...receipt } = (await response.json()) as CreateOrderResponse;
+    const order: Order = { ...receipt, customer_name: demoAuth.display_name };
+    setApiBalance((prev) => (prev ? { ...prev, huskybucks_balance: balance.huskybucks_balance } : prev));
+    void refreshBalance();
+    idempotencyRef.current = null;
+    clearCart();
+    return order;
+  }, [demoAuth, studentId, cart, placeMockOrder, fetchMenuForLocation, refreshBalance, clearCart]);
 
   const advanceOrderStatus = useCallback((orderId: string) => {
     setOrders((prev) =>
@@ -509,6 +620,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         loginAsPersona,
         logoutDemo,
         session,
+        refreshBalance,
         resetSession,
         locations,
         locationsLoading,
