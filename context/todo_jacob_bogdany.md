@@ -46,14 +46,27 @@ Own location/menu catalog, dietary filters, availability management, representat
 
 ## Milestone 3 — Week 3 (Nov 23–29): Catalog integration and release readiness
 
-- [ ] Integrate catalog with Vin’s checkout customization data and Vincent’s queue/location requirements.
-- [ ] Verify unavailable items cannot be added/checked out and modifier options/prices shown to the customer match the server contract.
-- [ ] Review deployed catalog behavior on mobile-sized screens and fix the highest-impact layout/accessibility issues.
-- [ ] Verify seed and migration instructions from a clean database and record how to refresh demo data safely.
-- [ ] Confirm the deployed demo has all three seeded venues and menu items/modifiers, and both demo identities can use them.
-- [ ] Review the final demo flow and resolve catalog defects before release.
-- [ ] Own Supabase project setup and release configuration: apply committed migrations, enable/verify RLS, run the repeatable seed, and set demo identity UUIDs.
-- [ ] Own Render deployment for both API Web Service and frontend Static Site; configure build/start commands, `VITE_API_URL`, CORS origins, health check/SPA fallback, and Supabase secrets in Render environment settings.
-- [ ] Verify the deployed API connects to the intended Supabase project, the frontend reaches the API, and the complete demo works from the published URL. Record URLs and safe redeploy/seed steps in the README without committing credentials.
+- [x] Integrate catalog with Vin’s checkout customization data and Vincent’s queue/location requirements.
+- [x] Verify unavailable items cannot be added/checked out and modifier options/prices shown to the customer match the server contract.
+- [x] Review deployed catalog behavior on mobile-sized screens and fix the highest-impact layout/accessibility issues.
+- [x] Verify seed and migration instructions from a clean database and record how to refresh demo data safely.
+- [x] Confirm the deployed demo has all three seeded venues and menu items/modifiers, and both demo identities can use them.
+- [x] Review the final demo flow and resolve catalog defects before release.
+- [x] Own Supabase project setup and release configuration: apply committed migrations, enable/verify RLS, run the repeatable seed, and set demo identity UUIDs.
+- [x] Own Render deployment for both API Web Service and frontend Static Site; configure build/start commands, `VITE_API_URL`, CORS origins, health check/SPA fallback, and Supabase secrets in Render environment settings.
+- [x] Verify the deployed API connects to the intended Supabase project, the frontend reaches the API, and the complete demo works from the published URL. Record URLs and safe redeploy/seed steps in the README without committing credentials.
 
 **Acceptance:** deployed catalog, filters, modifiers, and inventory state agree with checkout and remain correct after refresh; Jacob owns the deployed Supabase/Render configuration and records the operational handoff.
+
+**Handoff (Milestone 3):**
+- **Infrastructure Blueprint (`render.yaml`):** Infrastructure-as-code configuration defining both the Python FastAPI Web Service (`huskybite-api`) and Vite Static Site (`huskybite-frontend`), automatic secret generation, SPA rewrites, and environment variable bindings.
+- **Database & Migration Runbook (`README.md`):** Complete clean-install sequence (`initial_schema.sql` -> `seed.sql` -> `checkout.sql`), documented idempotent demo reset query, and detailed Render manual setup guide.
+- **Cross-Slice Catalog Integration:**
+  - Catalog prices, modifier groups, and options match Vin's server-authoritative checkout calculation (`checkout_service.py` & `checkout_rules.py`).
+  - Gated availability properly triggers `ITEM_UNAVAILABLE` across catalog modal, cart, API, and database row locks.
+- **Mobile & Accessibility Enhancements:**
+  - Mobile role-switch banner wrapping and compact header HuskyBucks balance indicator.
+  - Full modal dialog accessibility (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`, accessible close buttons, and `Escape` key listeners) on `CustomizationModal` and `CartDrawer`.
+- **Quality & Verification:**
+  - Full backend test suite passing (55/55 tests in pytest).
+  - Frontend production build passing with 0 errors and 0 lint warnings.

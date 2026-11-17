@@ -19,6 +19,14 @@ export default function CartDrawer({ onClose }: Props) {
     void refreshBalance();
   }, [refreshBalance]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   // Pickup location is the cart's location; one order = one location.
   const pickupLocation = locations.find((l) => l.id === cartLocationId);
   // No sales tax is modeled (master contract). Display estimate; server re-prices.
@@ -42,14 +50,26 @@ export default function CartDrawer({ onClose }: Props) {
   if (cart.length === 0) {
     return (
       <div className="fixed inset-0 z-50 flex justify-end">
-        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-        <div className="relative bg-white w-full max-w-sm shadow-2xl flex flex-col">
+        <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="empty-cart-title"
+          className="relative bg-white w-full max-w-sm shadow-2xl flex flex-col"
+        >
           <div className="p-5 border-b flex items-center justify-between">
-            <span className="font-bold text-blue-900 text-lg">Your Cart</span>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+            <h2 id="empty-cart-title" className="font-bold text-blue-900 text-lg">Your Cart</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close cart"
+              className="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100"
+            >
+              ×
+            </button>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-2">
-            <span className="text-5xl">🛒</span>
+            <span className="text-5xl" aria-hidden="true">🛒</span>
             <span className="text-sm">Your cart is empty</span>
           </div>
         </div>
@@ -59,14 +79,32 @@ export default function CartDrawer({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-sm shadow-2xl flex flex-col">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-title"
+        className="relative bg-white w-full max-w-sm shadow-2xl flex flex-col"
+      >
         {/* Header */}
         <div className="p-5 border-b flex items-center justify-between">
-          <span className="font-bold text-blue-900 text-lg">Your Cart</span>
+          <h2 id="cart-title" className="font-bold text-blue-900 text-lg">Your Cart</h2>
           <div className="flex gap-2 items-center">
-            <button onClick={() => { clearCart(); }} className="text-xs text-red-400 hover:text-red-600">Clear</button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl ml-2">×</button>
+            <button
+              type="button"
+              onClick={() => { clearCart(); }}
+              className="text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1 rounded hover:bg-red-50"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close cart"
+              className="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 ml-1"
+            >
+              ×
+            </button>
           </div>
         </div>
 

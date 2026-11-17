@@ -56,9 +56,16 @@ export default function KDSPage() {
   }, [demoAuth, locations, locationFilter, mockOrders]);
 
   useEffect(() => {
-    void loadQueue();
-    const timer = window.setInterval(() => void loadQueue(), 5000);
-    return () => window.clearInterval(timer);
+    let ignore = false;
+    const run = async () => {
+      if (!ignore) await loadQueue();
+    };
+    void run();
+    const timer = window.setInterval(() => void run(), 5000);
+    return () => {
+      ignore = true;
+      window.clearInterval(timer);
+    };
   }, [loadQueue]);
 
   async function advance(orderId: string) {

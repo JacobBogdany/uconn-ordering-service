@@ -54,9 +54,16 @@ export default function OrderTrackingPage() {
   }, [orderId, demoAuth, getOrderById]);
 
   useEffect(() => {
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 5000);
-    return () => window.clearInterval(interval);
+    let ignore = false;
+    const run = async () => {
+      if (!ignore) await refresh();
+    };
+    void run();
+    const interval = window.setInterval(() => void run(), 5000);
+    return () => {
+      ignore = true;
+      window.clearInterval(interval);
+    };
   }, [refresh]);
 
   if (loading && !order) return <div className="py-20 text-center text-gray-500">Loading order…</div>;
