@@ -1,18 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDemo } from '../context/DemoContext';
-import { CheckoutRuleError, formatMoney, MAX_QUANTITY_PER_LINE } from '../features/checkout/rules';
+import { formatMoney, MAX_QUANTITY_PER_LINE } from '../features/checkout/rules';
 
 interface Props {
   onClose: () => void;
 }
 
 export default function CartDrawer({ onClose }: Props) {
-  const { cart, session, cartTotal, cartLocationId, removeFromCart, updateCartQty, placeOrder, clearCart, locations } = useDemo();
+  const { cart, session, cartTotal, cartLocationId, removeFromCart, updateCartQty, placeOrder, clearCart, locations, refreshBalance } = useDemo();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+
+  // Show the server's current balance whenever the drawer opens.
+  useEffect(() => {
+    void refreshBalance();
+  }, [refreshBalance]);
 
   // Pickup location is the cart's location; one order = one location.
   const pickupLocation = locations.find((l) => l.id === cartLocationId);
@@ -28,7 +33,7 @@ export default function CartDrawer({ onClose }: Props) {
       onClose();
       navigate(`/order/${order.order_id}`);
     } catch (cause) {
-      setCheckoutError(cause instanceof CheckoutRuleError ? cause.message : 'Could not place order. Please try again.');
+      setCheckoutError(cause instanceof Error ? cause.message : 'Could not place order. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -63,7 +63,9 @@ The route reads only the profile matching the session's `sub` and ignores any `?
 | 404 | No profile for the identity (run the seed) |
 | 503 | Supabase isn't configured (the frontend then uses mock balances) |
 
-### `POST /api/orders` (models and rules ready; route and transaction come in Milestone 2)
+### `POST /api/orders` (implemented in Milestone 2; needs Supabase, the checkout migration, and the seed)
+
+Headers: `Authorization: Bearer <demo session>` and **`Idempotency-Key: <8–100 chars of A–Z a–z 0–9 - _>`** (required; the frontend sends a new UUID per checkout attempt and reuses it when the same cart is retried).
 
 Request (`extra` fields are forbidden, so a body containing `user_id`, `unit_price`, or `total_amount` gets a 422):
 
@@ -77,7 +79,7 @@ Request (`extra` fields are forbidden, so a body containing `user_id`, `unit_pri
 }
 ```
 
-Response `201`:
+Response `201` (or `200` when the idempotency key already produced an order: the original receipt is returned and nothing is charged again):
 
 ```json
 {
@@ -107,6 +109,8 @@ The body is `{"detail": {"code": "...", "message": "...", "field": "items[0].sel
 | `ITEM_UNAVAILABLE` | 409 |
 | `INSUFFICIENT_BALANCE` | 409 |
 
+Other statuses: `401` no/invalid session, `403` operator session, `503` Supabase not configured (the frontend then uses its mock checkout) or an unexpected database failure (details are logged, never returned). A missing or malformed `Idempotency-Key` is `VALIDATION_ERROR` with `field: "Idempotency-Key"`.
+
 Pydantic shape errors keep FastAPI's default 422 list format.
 
 ## 4. Demo identity strategy
@@ -127,8 +131,26 @@ Pydantic shape errors keep FastAPI's default 422 list format.
   - Please confirm the `{"detail": {code, message, field}}` error body.
   - The tracking and KDS pages now read `item.item_name`, `item.line_total`, and `selected_options[].name`.
   - I added `require_student` next to `require_operator`.
-- **Milestone 2:**
-  - Pickup codes must be collision-safe per location. A retry on the `(location_id, pickup_code)` unique constraint is acceptable.
-  - Add an idempotency key so a repeated submit can't charge twice.
-  - Do the debit and the inserts in one Postgres function or transaction.
+- **Milestone 2 (done):** see section 6.
+
+## 6. Persisted checkout (Milestone 2)
+
+Flow for `POST /api/orders` (`routes/checkout.py` → `services/checkout_service.py` → `public.place_order` in `supabase/migrations/20261117120000_checkout.sql`):
+
+1. `require_student` supplies the user id from the signed session. The body is validated (unknown fields → 422) and ids are canonicalised; a malformed location/item id is `NOT_FOUND`.
+2. The API reads the **current** location, menu item, modifier group and option rows and runs `price_order`. Prices, availability, selection rules and payment method are all decided here; failures return before the database is touched.
+3. `place_order(user, location, idempotency_key, lines)` runs as one transaction:
+   - locks the student's profile row (`for update`), so one student's checkouts are serialised;
+   - if `(user_id, idempotency_key)` already has an order, returns that receipt with `replayed: true` and charges nothing;
+   - locks the location, items and chosen options (`for share`) and re-verifies open/available, option membership, per-group min/max and that `base_price + Σ price_delta` equals the API's price. A mismatch raises `STALE_CATALOG`; the API re-prices once and, if it still differs, returns `ITEM_UNAVAILABLE` ("menu changed, review your cart");
+   - debits with `update … where huskybucks_balance >= total` (the table's `>= 0` check is the last backstop); not enough funds raises `INSUFFICIENT_BALANCE`;
+   - takes the next pickup code from `pickup_counters` (per-location, never resets), formatted `#B-101` / `#BW-101` / `#P-101`, so the `(location_id, pickup_code)` constraint cannot collide;
+   - inserts the order and `order_items`. `item_name` and `selected_options` are snapshotted **from the database rows**, not from the request, with option prices as JSON numbers.
+   Any raise rolls back all of it: balance, counter, order and lines.
+4. The function's receipt is the response, so `POST` and `GET /api/orders/{id}` share one shape (`GET` just omits `balance`; its lines are ordered by `line_no`).
+
+Frontend: the cart sends only ids, quantities, option ids and notes. The key is reused while the cart is unchanged and replaced when it changes. After success the balance in the header comes from the response; a network failure keeps the cart and key so a retry is safe. A `503` (Supabase not configured) switches to the local mock checkout; any other error is shown in the cart drawer, and `ITEM_UNAVAILABLE`/`NOT_FOUND` also refreshes the menu.
+
+Known limits: reusing a key with a different cart returns the original order (the UI never does this); the operator demo role has no per-location scope; cancellation/refund is still out of scope.
+
 - **Out of scope:** Flex Pass and Points redemption, tax, and cancellation refunds through the API (the mock refunds HuskyBucks only).
